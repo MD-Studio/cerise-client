@@ -1,3 +1,6 @@
+import docker
+
+from . import errors
 
 def service_exists(srv_name):
     """
@@ -10,7 +13,12 @@ def service_exists(srv_name):
     Returns:
         bool: True iff the service exists
     """
-    pass
+    dc = docker.from_env()
+    try:
+        dc.containers.get(srv_name)
+        return True
+    except docker.errors.NotFound:
+        return False
 
 def get_service(srv_name, port):
     """
@@ -27,7 +35,9 @@ def get_service(srv_name, port):
     Raises:
         ServiceNotFound: The requested service does not exist.
     """
-    pass
+    if not service_exists(srv_name):
+        raise errors.ServiceNotFound()
+    return Service(srv_name, port)
 
 def service_from_dict(srv_dict):
     """
@@ -45,7 +55,7 @@ def service_from_dict(srv_dict):
     Raises:
         ServiceNotFound: The requested service does not exist.
     """
-    pass
+    return get_service(srv_dict['name'], srv_dict['port'])
 
 def create_service(srv_name, port, srv_type, user_name, password=''):
     """
@@ -55,17 +65,47 @@ def create_service(srv_name, port, srv_type, user_name, password=''):
         srv_name (str): A unique name for the service. Must be a valid
             Docker container name.
         port (int): A unique port number on which the service will be
-            made available.
+            made available. It will listen only on localhost.
         srv_type (str): The type of service to launch. This is the name
             of the Docker image to use.
         user_name (str): The user name to use to connect to the compute
             resource.
         password (str): The password to use to connect to the compute
             resource.
+
+    Returns:
+        Service: The created service
+
+    Raises:
+        ServiceAlreadyExists: A service with this name already exists.
+        PortNotAvailable: The requested port is occupied.
     """
-    pass
+    dc = docker.from_env()
+    try:
+        srv = dc.containers.get(srv_name)
+        raise errors.ServiceAlreadyExists()
+    except docker.errors.NotFound:
+        pass
 
+    try:
+        dc.containers.run(
+                srv_type,
+                name=srv_name,
+                ports={'29593/tcp': ('127.0.0.1', port) },
+                environment={
+                    'CERISE_USERNAME': user_name,
+                    'CERISE_PASSWORD': password
+                    },
+                detach=True)
+    except docker.errors.APIError as e:
+        # Bit clunky, but it's all Docker gives us...
+        if 'address already in use' in e.explanation:
+            raise errors.PortNotAvailable(e)
+        if 'port is already allocated' in e.explanation:
+            raise errors.PortNotAvailable(e)
+        raise
 
+    return Service(srv_name, port)
 
 class Service:
     def __init__(self, name, port):
@@ -81,22 +121,45 @@ class Service:
                 Docker container).
             port (int): The port number on which the service runs.
         """
-        pass
+        self._name = name
+        """The name of this service, and it's Docker container."""
+        self._port = port
+        """The port number on localhost that the service listens on."""
+
+    def destroy(self):
+        """
+        Destroys the service.
+
+        This will make the service unavailable, and delete all
+        information about jobs (including input and output data)
+        contained within it.
+        """
+        dc = docker.from_env()
+        container = dc.containers.get(self._name)
+        container.stop()
+        container.remove()
 
     def start(self):
         """
         Start a stopped service.
+
+        Does nothing if the service is already running.
         """
-        pass
+        dc = docker.from_env()
+        container = dc.containers.get(self._name)
+        container.start()
 
     def stop(self):
         """
         Stop a running service.
 
         This must be done before shutting down the computer, to ensure
-        a clean shutdown.
+        a clean shutdown. Does nothing if the service is already
+        stopped.
         """
-        pass
+        dc = docker.from_env()
+        container = dc.containers.get(self._name)
+        container.stop()
 
     def is_running(self):
         """
@@ -105,7 +168,9 @@ class Service:
         Returns:
             bool: True iff the service is running.
         """
-        pass
+        dc = docker.from_env()
+        container = dc.containers.get(self._name)
+        return container.status == 'running'
 
     def to_dict(self):
         """
@@ -120,8 +185,10 @@ class Service:
             dict: A dictionary with information necessary to rebuild
                 the Service object.
         """
-        pass
-
+        return {
+                'name': self._name,
+                'port': self._port
+                }
 
     def create_job(self, job_name):
         """

@@ -6,6 +6,20 @@ class ServiceNotFound(Exception):
     """
     pass
 
+class ServiceAlreadyExists(Exception):
+    """
+    A service with the given name already exists on this machine, so
+    another one cannot be created.
+    """
+
+class PortNotAvailable(Exception):
+    """
+    The requested port is occupied by another service, or by some
+    other program that has bound it on localhost. Either stop the
+    blocking service or program, or try again with a different
+    port number.
+    """
+
 class JobNotFound(Exception):
     """
     The given job does not exist on this service. Either it never

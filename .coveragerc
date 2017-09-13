@@ -1,0 +1,5 @@
+[run]
+source = cerise_client
+omit =
+    # Don't test the coverage of the tests themselves
+    */test/*

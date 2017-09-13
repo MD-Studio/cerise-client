@@ -1,0 +1,16 @@
+sudo: required
+
+language: python
+python:
+  - "3.5"
+  - "3.6"
+
+services:
+  - docker
+
+install: "pip install -r requirements.txt && pip install -r test-requirements.txt"
+
+script: pytest --cov --cov-report=xml
+
+after_success:
+  - python-codacy-coverage -r coverage.xml

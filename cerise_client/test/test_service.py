@@ -30,11 +30,25 @@ def docker_client(request):
     return docker.from_env()
 
 @pytest.fixture()
-def test_container(request, docker_client):
+def test_image(request, docker_client):
+    """Get a plain cerise image for testing.
+
+    Ignores errors; we may have a local image available already,
+    in which case we want to continue, otherwise the other
+    tests will fail.
+    """
+    try:
+        docker_client.images.pull('mdstudio/cerise:develop')
+    except:
+        pass
+    return 'mdstudio/cerise:develop'
+
+@pytest.fixture()
+def test_container(request, test_image, docker_client):
     try:
         container = docker_client.containers.get('cerise_client_test_service')
     except docker.errors.NotFound:
-        image = docker_client.images.get('mdstudio/cerise:develop')
+        image = docker_client.images.get(test_image)
 
         container = docker_client.containers.run(
                 image,
@@ -48,10 +62,10 @@ def test_container(request, docker_client):
     container.remove()
 
 @pytest.fixture()
-def test_service(request, docker_client):
+def test_service(request, test_image, docker_client):
     _clean_up_service('cerise_client_test_service')
     srv = cs.create_service('cerise_client_test_service', 29593,
-            'mdstudio/cerise:develop', '', password='')
+            test_image, '', password='')
 
     yield srv
 

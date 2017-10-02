@@ -242,13 +242,7 @@ class Service:
             JobNotFound: The job is unknown to this service. Either
                 it was deleted, or it never existed on this service.
         """
-        r = requests.get(self._jobs + '/' + job_id)
-        if r.status_code == 404:
-            raise errors.JobNotFound()
-        if r.status_code != 200:
-            raise error.CommunicationError(r)
-
-        job = r.json()
+        job = self._get_job_from_service(job_id)
         declared_inputs = None
         return Job(self, job['name'], job['id'],
                 declared_inputs, job['workflow'], job['input'],
@@ -369,12 +363,8 @@ class Service:
             CommunicationError: There was a problem communicating with
                 the service.
         """
-        r = requests.get(self._jobs + '/' + job_id)
-        if r.status_code == 404:
-            raise errors.JobNotFound()
-        if r.status_code != 200:
-            raise error.CommunicationError(r)
-        return r.json()['state']
+        job = self._get_job_from_service(job_id)
+        return job['state']
 
     def _get_log(self, job_id):
         """
@@ -413,12 +403,8 @@ class Service:
             CommunicationError: There was a problem communicating with
                 the service.
         """
-        r = requests.get(self._jobs + '/' + job_id)
-        if r.status_code == 404:
-            raise errors.JobNotFound()
-        if r.status_code != 200:
-            raise errors.CommunicationError(r)
-        return r.json()['output']
+        job = self._get_job_from_service(job_id)
+        return job['output']
 
     def _delete_job(self, job_name, job_id):
         """
@@ -458,3 +444,28 @@ class Service:
             r = requests.delete(self._srv_loc + file_path)
             if r.status_code != 204:
                 raise errors.CommunicationError(r)
+
+    def _get_job_from_service(self, job_id):
+        """
+        Gets a JSON job object for the given job from the service.
+
+        Args:
+            job_id (str): The id of the job, as returned by job.id
+                after it's been created.
+
+        Returns:
+            Job: The requested job.
+
+        Raises:
+            JobNotFound: The job is unknown to this service. Either
+                it was deleted, or it never existed on this service.
+            CommunicationError: There was an error communicating with
+                the service.
+        """
+        r = requests.get(self._jobs + '/' + job_id)
+        if r.status_code == 404:
+            raise errors.JobNotFound()
+        if r.status_code != 200:
+            raise error.CommunicationError(r)
+        return r.json()
+

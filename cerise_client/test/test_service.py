@@ -3,7 +3,6 @@ import json
 import os
 import pytest
 import sys
-import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 print(sys.path)
@@ -67,7 +66,7 @@ def test_service_from_dict(test_container, test_service_dict):
 
 def test_missing_service_from_dict(test_service_dict):
     with pytest.raises(ce.ServiceNotFound):
-        srv = cs.service_from_dict(test_service_dict)
+        cs.service_from_dict(test_service_dict)
 
 def test_create_service(docker_client):
     srv = cs.create_service('cerise_client_test_service', 29593,
@@ -77,12 +76,12 @@ def test_create_service(docker_client):
 
 def test_create_existing_service(test_container):
     with pytest.raises(ce.ServiceAlreadyExists):
-        srv = cs.create_service('cerise_client_test_service', 29593,
+        cs.create_service('cerise_client_test_service', 29593,
                 'mdstudio/cerise:develop')
 
 def test_create_service_port_occupied(test_container):
     with pytest.raises(ce.PortNotAvailable):
-        srv = cs.create_service('cerise_client_test_service2', 29593,
+        cs.create_service('cerise_client_test_service2', 29593,
                 'mdstudio/cerise:develop')
         clean_up_service('cerise_client_test_service2')
 
@@ -171,9 +170,9 @@ def test_create_job(test_service):
     assert job.name == 'test_job'
 
 def test_create_job_twice(test_service):
-    job = test_service.create_job('test_job')
+    test_service.create_job('test_job')
     with pytest.raises(ce.JobAlreadyExists):
-        job2 = test_service.create_job('test_job')
+        test_service.create_job('test_job')
 
 def test_get_job_by_id(test_service, this_dir):
     job = test_service.create_job('test_get_job_by_id')
@@ -191,4 +190,4 @@ def test_get_job_by_id(test_service, this_dir):
 
 def test_nonexistent_job_by_id(test_service):
     with pytest.raises(ce.JobNotFound):
-        job = test_service.get_job_by_id('surely_this_id_does_not_exist')
+        test_service.get_job_by_id('surely_this_id_does_not_exist')

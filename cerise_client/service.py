@@ -87,7 +87,7 @@ def create_service(srv_name, port, srv_type, user_name=None, password=None):
     """
     dc = docker.from_env()
     try:
-        srv = dc.containers.get(srv_name)
+        _ = dc.containers.get(srv_name)
         raise errors.ServiceAlreadyExists()
     except docker.errors.NotFound:
         pass
@@ -445,20 +445,16 @@ class Service:
             raise errors.CommunicationError(r, r2)
 
     def _delete_input_dir(self, job_name):
-        import xml.etree.ElementTree as ET
+        import defusedxml.ElementTree as ET
 
         input_dir = self._input_dir(job_name)
         r = requests.request('PROPFIND', input_dir)
         xml_props = ET.fromstring(r.text)
-        print(xml_props)
 
         file_list = [path_el.text for path_el in xml_props.iter('{DAV:}href')]
-        print(file_list)
         file_list.sort(key=lambda name: -len(name))
-        print(file_list)
 
         for file_path in file_list:
-            print(file_path)
             r = requests.delete(self._srv_loc + file_path)
             if r.status_code != 204:
                 raise errors.CommunicationError(r)

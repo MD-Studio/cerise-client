@@ -1,4 +1,3 @@
-import json
 import os
 import pytest
 import requests
@@ -11,11 +10,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from .clean_up import clean_up
 clean_up()
 
-import cerise_client.service as cs
 import cerise_client.job as cj
 import cerise_client.errors as ce
 
-from .fixtures import docker_client, test_image, test_service, this_dir
+from .fixtures import test_image, test_service, this_dir
 
 def _create_test_job(test_service, this_dir, name):
     job = test_service.create_job(name)
@@ -36,7 +34,7 @@ def _create_test_job(test_service, this_dir, name):
 
 
 def test_create_job_object(test_service):
-    job = cj.Job(test_service, 'test_job')
+    _ = cj.Job(test_service, 'test_job')
 
 def test_set_workflow(test_service, this_dir):
     job = test_service.create_job('test_set_workflow')
@@ -81,7 +79,7 @@ def test_run_job(test_service, this_dir):
 def test_run_invalid_job(test_service):
     job = test_service.create_job('test_run_invalid_job')
     with pytest.raises(ce.InvalidJob):
-        job_id = job.run()
+        _ = job.run()
 
 def test_job_is_running(test_service, this_dir):
     job = test_service.create_job('test_job_is_running')
@@ -147,7 +145,7 @@ def test_job_delete(test_service, this_dir):
     # check that outputs are gone, after the back-end has had time to respond
     time.sleep(2)
     with pytest.raises(FileNotFoundError):
-        t = counts.text
+        _ = counts.text
 
     # check that the job is gone
     assert job.state is None

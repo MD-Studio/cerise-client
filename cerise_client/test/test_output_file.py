@@ -1,9 +1,7 @@
-import json
 import os
 import pytest
 import requests
 import sys
-import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
@@ -11,12 +9,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from .clean_up import clean_up
 clean_up()
 
-import cerise_client.service as cs
-import cerise_client.job as cj
-import cerise_client.errors as ce
 import cerise_client.output_file as cf
 
-from .fixtures import docker_client, test_image, test_service
+from .fixtures import test_image, test_service
 
 @pytest.fixture()
 def this_dir(request):

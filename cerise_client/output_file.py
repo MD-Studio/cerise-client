@@ -1,3 +1,5 @@
+import requests
+
 class OutputFile:
     def __init__(self, uri):
         """
@@ -6,7 +8,8 @@ class OutputFile:
         Args:
             uri (str): The URI at which the file is available.
         """
-        pass
+        self._uri = uri
+        """The URI at which the file is available."""
 
     def save_as(self, file_path):
         """
@@ -18,7 +21,8 @@ class OutputFile:
             FileNotFound: The given path references a directory that
                 does not exist.
         """
-        pass
+        with open(file_path, 'wb') as f:
+            f.write(self._get_file().content)
 
     @property
     def text(self):
@@ -31,7 +35,7 @@ class OutputFile:
         Returns:
             str: The contents of the file as text.
         """
-        pass
+        return self._get_file().text
 
     @property
     def content(self):
@@ -40,5 +44,24 @@ class OutputFile:
 
         Returns:
             bytes: The contents of the file as raw bytes.
+
+        Raises:
+            FileNotFound: The given path references a directory that
+                does not exist.
         """
-        pass
+        return self._get_file().content
+
+    def _get_file(self):
+        """
+        Returns a requests.Response object with the remote file.
+
+        Returns:
+            (requests.Response): The remote file
+        Raises:
+            FileNotFound: The given path references a directory that
+                does not exist.
+        """
+        r = requests.get(self._uri)
+        if r.status_code == 404:
+            raise FileNotFoundError()
+        return r

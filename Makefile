@@ -8,3 +8,7 @@ docs-clean:
 docs:
 	sphinx-build -a docs/source docs/build
 
+
+.PHONY: test
+test:
+	python -m pytest -x --cov

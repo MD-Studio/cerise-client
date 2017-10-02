@@ -1,6 +1,11 @@
+from . import errors
+from .job import Job
+
 import docker
 
-from . import errors
+import os
+import requests
+import time
 
 def service_exists(srv_name):
     """
@@ -57,7 +62,7 @@ def service_from_dict(srv_dict):
     """
     return get_service(srv_dict['name'], srv_dict['port'])
 
-def create_service(srv_name, port, srv_type, user_name, password=''):
+def create_service(srv_name, port, srv_type, user_name=None, password=None):
     """
     Creates a new service for a given user at a given port.
 
@@ -87,15 +92,21 @@ def create_service(srv_name, port, srv_type, user_name, password=''):
     except docker.errors.NotFound:
         pass
 
+    if user_name == '':
+        user_name = None
+
+    environment = {}
+    if user_name is not None:
+        environment['CERISE_USERNAME'] = user_name
+    if password is not None:
+        environment['CERISE_PASSWORD'] = password
+
     try:
         dc.containers.run(
                 srv_type,
                 name=srv_name,
                 ports={'29593/tcp': ('127.0.0.1', port) },
-                environment={
-                    'CERISE_USERNAME': user_name,
-                    'CERISE_PASSWORD': password
-                    },
+                environment=environment,
                 detach=True)
     except docker.errors.APIError as e:
         # Bit clunky, but it's all Docker gives us...
@@ -104,6 +115,8 @@ def create_service(srv_name, port, srv_type, user_name, password=''):
         if 'port is already allocated' in e.explanation:
             raise errors.PortNotAvailable(e)
         raise
+
+    time.sleep(1)
 
     return Service(srv_name, port)
 
@@ -122,9 +135,13 @@ class Service:
             port (int): The port number on which the service runs.
         """
         self._name = name
-        """The name of this service, and it's Docker container."""
+        """The name of this service, and its Docker container."""
         self._port = port
         """The port number on localhost that the service listens on."""
+
+        self._srv_loc = 'http://localhost:' + str(self._port)
+        self._filestore = self._srv_loc + '/files'
+        self._jobs = self._srv_loc + '/jobs'
 
     def destroy(self):
         """
@@ -202,8 +219,13 @@ class Service:
 
         Returns:
             Job: The new job.
+
+        Raises:
+            JobAlreadyExists: A job with this name already exists
+                on this service.
         """
-        pass
+        self._create_input_dir(job_name)
+        return Job(self, job_name)
 
     def get_job_by_id(self, job_id):
         """
@@ -220,4 +242,223 @@ class Service:
             JobNotFound: The job is unknown to this service. Either
                 it was deleted, or it never existed on this service.
         """
-        pass
+        r = requests.get(self._jobs + '/' + job_id)
+        if r.status_code == 404:
+            raise errors.JobNotFound()
+        if r.status_code != 200:
+            raise error.CommunicationError(r)
+
+        job = r.json()
+        declared_inputs = None
+        return Job(self, job['name'], job['id'],
+                declared_inputs, job['workflow'], job['input'],
+                job['output'])
+
+    def _input_dir(self, job_name):
+        """
+        Returns the remote URL for the input data directory for the
+        given job.
+
+        Args:
+            job_name (str): The name of the job to return the
+                input directory for.
+        Returns:
+            str: The URL.
+        """
+        return self._filestore + '/input/' + job_name
+
+    def _create_input_dir(self, job_name):
+        """
+        Create a remote input data directory for a job on this service.
+
+        Args:
+            job_name (str): The (unique!) name of the job to make a
+                directory for.
+
+        Raises:
+            JobAlreadyExists: A directory named after this job already
+                exists on this service.
+        """
+        # Note: WebDAV requires the trailing /
+        r = requests.request('MKCOL', self._input_dir(job_name) + '/')
+        if r.status_code == 405:
+            raise errors.JobAlreadyExists()
+
+    def _upload_file(self, job_name, local_file_path):
+        """
+        Upload a local file to a remote input data directory for a
+        given job. Directory must have been made first using
+        _create_jobdir().
+
+        If a file with the same name already exists, it is overwritten
+        silently.
+
+        Args:
+            job_name (str): The name of the job to which this file
+                belongs.
+            local_file_path (str): The path to the local file to
+                upload.
+
+        Returns:
+            str: The remote URL where the file was stored.
+
+        Raises:
+            FileNotFound: The local file could not be opened.
+        """
+        base_name = os.path.basename(local_file_path)
+        remote_url = self._input_dir(job_name) + '/' + base_name
+
+        with open(local_file_path, 'rb') as local_file:
+            requests.put(remote_url, data=local_file.read())
+
+        return remote_url
+
+    def _run_job(self, job_desc):
+        """
+        Start a job on the service.
+
+        Args:
+            job_desc (dict): The job description. Must contain keys
+                'name', 'workflow' and 'input' with the name of the
+                job, the URL to the workflow, and the input description
+                dict respectively.
+
+        Returns:
+            str: The id given to this job by the service.
+
+        Raises:
+            InvalidJob: The job was invalid, perhaps because the
+                workflow has not been set.
+        """
+        r = requests.post(self._jobs, json=job_desc)
+        if r.status_code == 400:
+            raise errors.InvalidJob()
+        return r.json()['id']
+
+    def _cancel_job(self, job_id):
+        """
+        Cancel a job running on the service.
+
+        Args:
+            job_id (str): The id of the job.
+
+        Raises:
+            JobNotFound: The job was not found on the service
+            CommunicationError: There was a problem communicating with
+                the service.
+        """
+        r = requests.post(self._jobs + '/' + job_id + '/cancel')
+        if r.status_code == 404:
+            raise errors.JobNotFound()
+        if r.status_code != 200:
+            raise CommunicationError()
+
+
+    def _job_state(self, job_id):
+        """
+        Get the state of the given job.
+
+        Args:
+            job_id (str): The server-side job id.
+
+        Returns:
+            str: The state that the job is in.
+
+        Raises:
+            JobNotFound: The job is unknown to the service.
+            CommunicationError: There was a problem communicating with
+                the service.
+        """
+        r = requests.get(self._jobs + '/' + job_id)
+        if r.status_code == 404:
+            raise errors.JobNotFound()
+        if r.status_code != 200:
+            raise error.CommunicationError(r)
+        return r.json()['state']
+
+    def _get_log(self, job_id):
+        """
+        Get the log of the given job.
+
+        Args:
+            job_id (str): The server-side job id.
+
+        Returns:
+            str: The log as text.
+
+        Raises:
+            JobNotFound: The job is unknown to the service.
+            CommunicationError: There was a problem communicating with
+                the service.
+        """
+        r = requests.get(self._jobs + '/' + job_id + '/log')
+        if r.status_code == 404:
+            raise errors.JobNotFound()
+        if r.status_code != 200:
+            raise errors.CommunicationError(r)
+        return r.text
+
+    def _get_outputs(self, job_id):
+        """
+        Get the outputs of the given job.
+
+        Args:
+            job_id (str): The server-side job id.
+
+        Returns:
+            dict: The CWL output dictionary.
+
+        Raises:
+            JobNotFound: The job is unknown to the service.
+            CommunicationError: There was a problem communicating with
+                the service.
+        """
+        r = requests.get(self._jobs + '/' + job_id)
+        if r.status_code == 404:
+            raise errors.JobNotFound()
+        if r.status_code != 200:
+            raise errors.CommunicationError(r)
+        return r.json()['output']
+
+    def _delete_job(self, job_name, job_id):
+        """
+        Delete a job from the service.
+
+        Args:
+            job_name (str): The client-side name of the job.
+            job_id (str): The server-side job id.
+            input_files ([str]): A list of file names in the input
+                directory.
+
+        Raises:
+            JobNotFound: The job is unknown to the service.
+            CommunicationError: There was a problem communicating with
+                the service.
+        """
+        self._delete_input_dir(job_name)
+        r = requests.delete(self._jobs + '/' + job_id)
+
+        if r.status_code == 404:
+            raise errors.JobNotFound("Either the input directory or the job could not be found.")
+
+        if r.status_code != 204:
+            raise errors.CommunicationError(r, r2)
+
+    def _delete_input_dir(self, job_name):
+        import xml.etree.ElementTree as ET
+
+        input_dir = self._input_dir(job_name)
+        r = requests.request('PROPFIND', input_dir)
+        xml_props = ET.fromstring(r.text)
+        print(xml_props)
+
+        file_list = [path_el.text for path_el in xml_props.iter('{DAV:}href')]
+        print(file_list)
+        file_list.sort(key=lambda name: -len(name))
+        print(file_list)
+
+        for file_path in file_list:
+            print(file_path)
+            r = requests.delete(self._srv_loc + file_path)
+            if r.status_code != 204:
+                raise errors.CommunicationError(r)

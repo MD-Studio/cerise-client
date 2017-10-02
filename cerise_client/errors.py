@@ -11,6 +11,7 @@ class ServiceAlreadyExists(Exception):
     A service with the given name already exists on this machine, so
     another one cannot be created.
     """
+    pass
 
 class PortNotAvailable(Exception):
     """
@@ -19,11 +20,13 @@ class PortNotAvailable(Exception):
     blocking service or program, or try again with a different
     port number.
     """
+    pass
 
 class JobNotFound(Exception):
     """
     The given job does not exist on this service. Either it never
-    existed, or it was deleted.
+    existed because it hasn't been submitted yet (did you call
+    job.run()?), or it was deleted.
     """
     pass
 
@@ -34,8 +37,21 @@ class JobAlreadyExists(Exception):
     """
     pass
 
+class InvalidJob(Exception):
+    """
+    You submitted an invalid job. Did you forget to add a workflow?
+    """
+    pass
+
 class UnknownInput(Exception):
     """
     You tried to set the value for an input that is not in the workflow
     for the job you are creating.
     """
+    pass
+
+class CommunicationError(Exception):
+    """
+    There was an error communicating with the service.
+    """
+    pass

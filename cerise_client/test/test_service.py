@@ -8,40 +8,15 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 print(sys.path)
 
+# clean up any mess left over from previous failed tests
+from .clean_up import clean_up
+clean_up()
+
 import cerise_client.service as cs
 import cerise_client.errors as ce
+from .clean_up import clean_up_service
 
-def _clean_up_service(srv_name):
-    dc = docker.from_env()
-    try:
-        test_srv = dc.containers.get(srv_name)
-        test_srv.stop()
-        test_srv.remove()
-    except docker.errors.NotFound:
-        pass
-
-# Clean up any mess left over from previous failed tests.
-_clean_up_service('cerise_client_test_service')
-_clean_up_service('cerise_client_test_service2')
-
-
-@pytest.fixture()
-def docker_client(request):
-    return docker.from_env()
-
-@pytest.fixture()
-def test_image(request, docker_client):
-    """Get a plain cerise image for testing.
-
-    Ignores errors; we may have a local image available already,
-    in which case we want to continue, otherwise the other
-    tests will fail.
-    """
-    try:
-        docker_client.images.pull('mdstudio/cerise:develop')
-    except:
-        pass
-    return 'mdstudio/cerise:develop'
+from .fixtures import docker_client, test_image, test_service, this_dir
 
 @pytest.fixture()
 def test_container(request, test_image, docker_client):
@@ -60,16 +35,6 @@ def test_container(request, test_image, docker_client):
 
     container.stop()
     container.remove()
-
-@pytest.fixture()
-def test_service(request, test_image, docker_client):
-    _clean_up_service('cerise_client_test_service')
-    srv = cs.create_service('cerise_client_test_service', 29593,
-            test_image, '', password='')
-
-    yield srv
-
-    _clean_up_service('cerise_client_test_service')
 
 @pytest.fixture()
 def test_service_dict(request):
@@ -106,20 +71,20 @@ def test_missing_service_from_dict(test_service_dict):
 
 def test_create_service(docker_client):
     srv = cs.create_service('cerise_client_test_service', 29593,
-            'mdstudio/cerise:develop', '', password='')
+            'mdstudio/cerise:develop')
     assert isinstance(srv, cs.Service)
-    _clean_up_service('cerise_client_test_service')
+    clean_up_service('cerise_client_test_service')
 
 def test_create_existing_service(test_container):
     with pytest.raises(ce.ServiceAlreadyExists):
         srv = cs.create_service('cerise_client_test_service', 29593,
-                'mdstudio/cerise:develop', '', password='')
+                'mdstudio/cerise:develop')
 
 def test_create_service_port_occupied(test_container):
     with pytest.raises(ce.PortNotAvailable):
         srv = cs.create_service('cerise_client_test_service2', 29593,
-                'mdstudio/cerise:develop', '', password='')
-        _clean_up_service('cerise_client_test_service2')
+                'mdstudio/cerise:develop')
+        clean_up_service('cerise_client_test_service2')
 
 def test_create_service_object():
     srv = cs.Service('cerise_client_test_service', 29593)
@@ -200,3 +165,30 @@ def test_service_serialisation(test_service):
     assert srv.is_running()
     assert srv._name == 'cerise_client_test_service'
     assert srv._port == 29593
+
+def test_create_job(test_service):
+    job = test_service.create_job('test_job')
+    assert job.name == 'test_job'
+
+def test_create_job_twice(test_service):
+    job = test_service.create_job('test_job')
+    with pytest.raises(ce.JobAlreadyExists):
+        job2 = test_service.create_job('test_job')
+
+def test_get_job_by_id(test_service, this_dir):
+    job = test_service.create_job('test_get_job_by_id')
+    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
+    job.add_input_file('input_file', os.path.join(this_dir, 'test_workflow2.cwl'))
+    job.run()
+    job2 = test_service.get_job_by_id(job.id)
+    assert job.id == job2.id
+    assert job.name == job2.name
+    assert job._service == job2._service
+    assert job._inputs == job2._inputs
+    assert job._workflow_url == job2._workflow_url
+    assert job._input_desc == job2._input_desc
+    assert job._outputs == job2._outputs
+
+def test_nonexistent_job_by_id(test_service):
+    with pytest.raises(ce.JobNotFound):
+        job = test_service.get_job_by_id('surely_this_id_does_not_exist')

@@ -85,7 +85,7 @@ def test_job_is_running(test_service, this_dir):
     job = test_service.create_job('test_job_is_running')
     job.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
     job.set_input('time', 1)
-    job_id = job.run()
+    _ = job.run()
     assert job.is_running()
     while job.is_running():
         time.sleep(0.1)

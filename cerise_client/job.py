@@ -1,5 +1,7 @@
 from .output_file import OutputFile
 
+import os
+
 class Job:
     def __init__(self, service, name, job_id=None, inputs=None,
             workflow=None, input_desc=None, outputs=None):
@@ -116,7 +118,8 @@ class Job:
 
         self._input_desc[input_name] = {
                 "class": "File",
-                "location": remote_url
+                "location": remote_url,
+                "basename": os.path.basename(file_path)
                 }
 
     def set_input(self, input_name, value):

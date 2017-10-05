@@ -50,6 +50,12 @@ class UnknownInput(Exception):
     """
     pass
 
+class MissingOutput(Exception):
+    """
+    The output returned by the service does not refer to an existing
+    file. Maybe the job was deleted?
+    """
+
 class CommunicationError(Exception):
     """
     There was an error communicating with the service.

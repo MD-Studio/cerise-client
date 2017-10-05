@@ -144,7 +144,7 @@ def test_job_delete(test_service, this_dir):
 
     # check that outputs are gone, after the back-end has had time to respond
     time.sleep(2)
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(ce.MissingOutput):
         _ = counts.text
 
     # check that the job is gone

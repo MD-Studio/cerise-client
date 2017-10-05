@@ -1,3 +1,5 @@
+from . import errors
+
 import requests
 
 class OutputFile:
@@ -18,8 +20,9 @@ class OutputFile:
         Args:
             file_path (str): The path to save the file to.
         Raises:
-            FileNotFound: The given path references a directory that
-                does not exist.
+            IOError: There was a problem saving the file.
+            errors.MissingOutput: The output doesn't exist. Maybe the
+                job was deleted?
         """
         with open(file_path, 'wb') as f:
             f.write(self._get_file().content)
@@ -34,6 +37,9 @@ class OutputFile:
 
         Returns:
             str: The contents of the file as text.
+        Raises:
+            errors.MissingOutput: The output doesn't exist. Maybe the
+                job was deleted?
         """
         return self._get_file().text
 
@@ -44,10 +50,6 @@ class OutputFile:
 
         Returns:
             bytes: The contents of the file as raw bytes.
-
-        Raises:
-            FileNotFound: The given path references a directory that
-                does not exist.
         """
         return self._get_file().content
 
@@ -58,10 +60,10 @@ class OutputFile:
         Returns:
             (requests.Response): The remote file
         Raises:
-            FileNotFound: The given path references a directory that
-                does not exist.
+            errors.MissingOutput: The output doesn't exist. Maybe the
+                job was deleted?
         """
         r = requests.get(self._uri)
         if r.status_code == 404:
-            raise FileNotFoundError()
+            raise errors.MissingOutput
         return r

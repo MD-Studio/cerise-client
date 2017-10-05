@@ -1,3 +1,4 @@
 docker
 setuptools >= 21.0.0
 defusedxml
+future

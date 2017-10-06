@@ -8,7 +8,7 @@ import cerise_client.service as cs
 def docker_client(request):
     return docker.from_env()
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def test_image(request):
     """Get a plain cerise image for testing.
 

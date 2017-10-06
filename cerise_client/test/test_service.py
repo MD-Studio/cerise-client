@@ -223,3 +223,15 @@ def test_list_jobs(test_service, this_dir):
     job_list = test_service.list_jobs()
     assert len(job_list) == 1
     assert job_list[0].name == 'test_list_jobs2'
+
+def test_get_job_by_name(test_service, this_dir):
+    job = test_service.create_job('test_find_job_by_name')
+    job.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
+    job.set_input('time', 1)
+    job.run()
+
+    job2 = test_service.get_job_by_name('test_find_job_by_name')
+    assert job.id == job2.id
+
+    with pytest.raises(ce.JobNotFound):
+        job3 = test_service.get_job_by_name('no_such_job')

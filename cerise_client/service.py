@@ -250,6 +250,29 @@ class Service:
                 declared_inputs, job['workflow'], job['input'],
                 job['output'])
 
+    def get_job_by_name(self, job_name):
+        """
+        Gets a job by its name. Only jobs that have been submitted
+        are on the service, so if job.run() has not been called,
+        this will not find the job.
+
+        Args:
+            job_name (str): The name of the job, as set when it was
+                created.
+
+        Returns:
+            Job: The requested job.
+
+        Raises:
+            JobNotFound: The job is unknown to this service. Either
+                it was deleted, or it never existed. Did you run()
+                the job?
+        """
+        job = [job for job in self.list_jobs() if job.name == job_name]
+        if job == []:
+            raise errors.JobNotFound()
+        return job[0]
+
     def list_jobs(self):
         """
         List all the jobs known to the service. Note that only jobs
@@ -265,7 +288,7 @@ class Service:
         """
         r = requests.get(self._jobs)
         if r.status_code != 200:
-            raise error.CommunicationError(r)
+            raise errors.CommunicationError(r)
         jobs_json = r.json()
         return [Job(self, job['name'], job['id'], None,
                     job['workflow'], job['input'], job['output'])

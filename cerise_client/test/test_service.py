@@ -3,6 +3,7 @@ import json
 import os
 import pytest
 import sys
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 print(sys.path)
@@ -191,3 +192,34 @@ def test_get_job_by_id(test_service, this_dir):
 def test_nonexistent_job_by_id(test_service):
     with pytest.raises(ce.JobNotFound):
         test_service.get_job_by_id('surely_this_id_does_not_exist')
+
+def test_list_jobs(test_service, this_dir):
+    job_list = test_service.list_jobs()
+    assert len(job_list) == 0
+
+    job = test_service.create_job('test_list_jobs1')
+    job.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
+    job.set_input('time', 1)
+    job.run()
+
+    job_list = test_service.list_jobs()
+    assert len(job_list) == 1
+    assert job_list[0].name == 'test_list_jobs1'
+
+    job2 = test_service.create_job('test_list_jobs2')
+    job2.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
+    job2.set_input('time', 2)
+    job2.run()
+
+    job_list = test_service.list_jobs()
+    assert len(job_list) == 2
+    assert 'test_list_jobs1' in [j.name for j in job_list]
+    assert 'test_list_jobs2' in [j.name for j in job_list]
+
+    time.sleep(2)
+    job.delete()
+    time.sleep(3)
+
+    job_list = test_service.list_jobs()
+    assert len(job_list) == 1
+    assert job_list[0].name == 'test_list_jobs2'

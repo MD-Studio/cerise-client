@@ -165,6 +165,8 @@ class Service:
         dc = docker.from_env()
         container = dc.containers.get(self._name)
         container.start()
+        # Give it some time to start, so subsequent calls work
+        time.sleep(1)
 
     def stop(self):
         """
@@ -247,6 +249,27 @@ class Service:
         return Job(self, job['name'], job['id'],
                 declared_inputs, job['workflow'], job['input'],
                 job['output'])
+
+    def list_jobs(self):
+        """
+        List all the jobs known to the service. Note that only jobs
+        that have been submitted are known to the service, if you have
+        not called job.run() yet, it won't be in there.
+
+        Returns:
+            [Job]: A list of known jobs.
+
+        Raises:
+            CommunicationError: There was a problem communicating with
+                the service. Is it running?
+        """
+        r = requests.get(self._jobs)
+        if r.status_code != 200:
+            raise error.CommunicationError(r)
+        jobs_json = r.json()
+        return [Job(self, job['name'], job['id'], None,
+                    job['workflow'], job['input'], job['output'])
+                for job in jobs_json]
 
     def _input_dir(self, job_name):
         """

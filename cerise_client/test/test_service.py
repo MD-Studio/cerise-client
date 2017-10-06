@@ -84,7 +84,7 @@ def test_create_service_port_occupied(test_container):
     with pytest.raises(ce.PortNotAvailable):
         cs.create_service('cerise_client_test_service2', 29593,
                 'mdstudio/cerise:develop')
-        clean_up_service('cerise_client_test_service2')
+    clean_up_service('cerise_client_test_service2')
 
 def test_create_service_object():
     srv = cs.Service('cerise_client_test_service', 29593)

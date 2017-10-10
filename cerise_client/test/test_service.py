@@ -2,6 +2,7 @@ import docker
 import json
 import os
 import pytest
+import requests
 import sys
 import time
 
@@ -17,6 +18,7 @@ import cerise_client.errors as ce
 from .clean_up import clean_up_service
 
 from .fixtures import docker_client, test_image, test_service, this_dir
+from .fixtures import create_test_job
 
 @pytest.fixture()
 def test_container(request, test_image, docker_client):
@@ -43,23 +45,23 @@ def test_service_dict(request):
             'port': 29593
             }
 
-def test_service_exists(test_container):
-    exists = cs.service_exists('cerise_client_test_service')
+def test_managed_service_exists(test_container):
+    exists = cs.managed_service_exists('cerise_client_test_service')
     assert isinstance(exists, bool)
     assert exists
 
-def test_service_does_not_exist():
-    exists = cs.service_exists('cerise_client_test_service')
+def test_managed_service_does_not_exist():
+    exists = cs.managed_service_exists('cerise_client_test_service')
     assert isinstance(exists, bool)
     assert not exists
 
-def test_get_service(test_container):
-    srv = cs.get_service('cerise_client_test_service', 29593)
+def test_get_managed_service(test_container):
+    srv = cs.get_managed_service('cerise_client_test_service', 29593)
     assert isinstance(srv, cs.Service)
 
-def test_get_missing_service():
+def test_get_missing_managed_service():
     with pytest.raises(ce.ServiceNotFound):
-        cs.get_service('cerise_client_test_service', 29593)
+        cs.get_managed_service('cerise_client_test_service', 29593)
 
 def test_service_from_dict(test_container, test_service_dict):
     srv = cs.service_from_dict(test_service_dict)
@@ -69,42 +71,55 @@ def test_missing_service_from_dict(test_service_dict):
     with pytest.raises(ce.ServiceNotFound):
         cs.service_from_dict(test_service_dict)
 
-def test_create_service(docker_client):
-    srv = cs.create_service('cerise_client_test_service', 29593,
+def test_create_managed_service(docker_client):
+    srv = cs.create_managed_service('cerise_client_test_service', 29593,
             'mdstudio/cerise:develop')
     assert isinstance(srv, cs.Service)
     clean_up_service('cerise_client_test_service')
 
-def test_create_existing_service(test_container):
+def test_create_existing_managed_service(test_container):
     with pytest.raises(ce.ServiceAlreadyExists):
-        cs.create_service('cerise_client_test_service', 29593,
+        cs.create_managed_service('cerise_client_test_service', 29593,
                 'mdstudio/cerise:develop')
 
-def test_create_service_port_occupied(test_container):
+def test_create_managed_service_port_occupied(test_container):
     with pytest.raises(ce.PortNotAvailable):
-        cs.create_service('cerise_client_test_service2', 29593,
+        cs.create_managed_service('cerise_client_test_service2', 29593,
                 'mdstudio/cerise:develop')
     clean_up_service('cerise_client_test_service2')
 
-def test_create_service_object():
+def test_create_managed_service_object():
     srv = cs.Service('cerise_client_test_service', 29593)
     assert srv._name == 'cerise_client_test_service'
     assert srv._port == 29593
 
-def test_destroy_service(docker_client, test_service):
+def test_destroy_managed_service(docker_client, test_service):
     container = docker_client.containers.get('cerise_client_test_service')
     assert container.status == 'running'
 
-    test_service.destroy()
+    cs.destroy_managed_service(test_service)
 
     with pytest.raises(docker.errors.NotFound):
         docker_client.containers.get('cerise_client_test_service')
+
+def test_require_managed_service(docker_client):
+    srv = cs.require_managed_service('cerise_client_test_service', 29593,
+            'mdstudio/cerise:develop')
+    assert isinstance(srv, cs.Service)
+    clean_up_service('cerise_client_test_service')
+
+def test_require_existing_managed_service(docker_client, test_service):
+    srv = cs.require_managed_service('cerise_client_test_service', 29593,
+            'mdstudio/cerise:develop')
+    assert isinstance(srv, cs.Service)
+    assert srv._name == 'cerise_client_test_service'
+    assert srv._port == 29593
 
 def test_start_running_service(docker_client, test_service):
     container = docker_client.containers.get('cerise_client_test_service')
     assert container.status == 'running'
 
-    test_service.start()
+    cs.start_managed_service(test_service)
 
     container.reload()
     assert container.status == 'running'
@@ -116,32 +131,32 @@ def test_start_stopped_service(docker_client, test_service):
     container.reload()
     assert container.status == 'exited'
 
-    test_service.start()
+    cs.start_managed_service(test_service)
 
     container.reload()
     assert container.status == 'running'
 
-def test_stop_running_service(docker_client, test_service):
-    test_service.stop()
+def test_stop_running_managed_service(docker_client, test_service):
+    cs.stop_managed_service(test_service)
 
     container = docker_client.containers.get('cerise_client_test_service')
     assert container.status == 'exited'
 
-def test_stop_stopped_service(docker_client, test_service):
+def test_stop_stopped_managed_service(docker_client, test_service):
     container = docker_client.containers.get('cerise_client_test_service')
     container.stop()
     container.reload()
     assert container.status == 'exited'
 
-    test_service.stop()
+    cs.stop_managed_service(test_service)
 
     container.reload()
     assert container.status == 'exited'
 
-def test_is_running(docker_client, test_service):
+def test_managed_service_is_running(docker_client, test_service):
     container = docker_client.containers.get('cerise_client_test_service')
     assert container.status == 'running'
-    assert test_service.is_running()
+    assert cs.managed_service_is_running(test_service)
 
 def test_is_not_running(docker_client, test_service):
     container = docker_client.containers.get('cerise_client_test_service')
@@ -149,31 +164,50 @@ def test_is_not_running(docker_client, test_service):
     container.reload()
     assert container.status == 'exited'
 
-    assert not test_service.is_running()
+    assert not cs.managed_service_is_running(test_service)
 
 def test_service_to_dict(test_service):
-    dict_ = test_service.to_dict()
+    dict_ = cs.service_to_dict(test_service)
     assert dict_['name'] == 'cerise_client_test_service'
     assert dict_['port'] == 29593
 
 def test_service_serialisation(test_service):
-    dict_ = test_service.to_dict()
+    dict_ = cs.service_to_dict(test_service)
     json_dict = json.dumps(dict_)
     dict2 = json.loads(json_dict)
     srv = cs.service_from_dict(dict2)
 
-    assert srv.is_running()
+    assert cs.managed_service_is_running(srv)
     assert srv._name == 'cerise_client_test_service'
     assert srv._port == 29593
 
 def test_create_job(test_service):
-    job = test_service.create_job('test_job')
-    assert job.name == 'test_job'
+    job = test_service.create_job('test_create_job')
+    assert job.name == 'test_create_job'
 
 def test_create_job_twice(test_service):
-    test_service.create_job('test_job')
+    test_service.create_job('test_create_job_twice')
     with pytest.raises(ce.JobAlreadyExists):
-        test_service.create_job('test_job')
+        test_service.create_job('test_create_job_twice')
+
+def test_destroy_job(test_service, this_dir):
+    job = create_test_job(test_service, this_dir, 'test_destroy_job')
+    counts = job.outputs['counts']
+
+    test_service.destroy_job(job)
+
+    # check that inputs are gone
+    r = requests.get('http://localhost:29593/files/input/test_job_delete/')
+    assert r.status_code == 404
+
+    # check that outputs are gone, after the back-end has had time to respond
+    time.sleep(2)
+    with pytest.raises(ce.MissingOutput):
+        _ = counts.text
+
+    # check that the job is gone
+    with pytest.raises(ce.JobNotFound):
+        _ = job.state
 
 def test_get_job_by_id(test_service, this_dir):
     job = test_service.create_job('test_get_job_by_id')
@@ -217,7 +251,7 @@ def test_list_jobs(test_service, this_dir):
     assert 'test_list_jobs2' in [j.name for j in job_list]
 
     time.sleep(2)
-    job.delete()
+    test_service.destroy_job(job)
     time.sleep(3)
 
     job_list = test_service.list_jobs()

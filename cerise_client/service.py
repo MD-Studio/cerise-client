@@ -7,64 +7,11 @@ import os
 import requests
 import time
 
-def service_exists(srv_name):
+# Creating and destroying services
+
+def create_managed_service(srv_name, port, srv_type, user_name=None, password=None):
     """
-    Checks whether a service with the given name exists.
-
-    Args:
-        srv_name (str): Name of the service. Must be a valid Docker
-            container name.
-
-    Returns:
-        bool: True iff the service exists
-    """
-    dc = docker.from_env()
-    try:
-        dc.containers.get(srv_name)
-        return True
-    except docker.errors.NotFound:
-        return False
-
-def get_service(srv_name, port):
-    """
-    Gets a service by name and port.
-
-    Args:
-        srv_name (str): Name that the service was created with. Must be
-            a valid Docker container name.
-        port (int): Port number that the service was created with.
-
-    Returns:
-        Service: The service, if it exists.
-
-    Raises:
-        ServiceNotFound: The requested service does not exist.
-    """
-    if not service_exists(srv_name):
-        raise errors.ServiceNotFound()
-    return Service(srv_name, port)
-
-def service_from_dict(srv_dict):
-    """
-    Gets a service from a dictionary.
-
-    The dictionary must have been created by a call to
-    Service.to_dict().
-
-    Args:
-        srv_dict (dict): A dictionary describing the service.
-
-    Returns:
-        Service: The service, if it exists.
-
-    Raises:
-        ServiceNotFound: The requested service does not exist.
-    """
-    return get_service(srv_dict['name'], srv_dict['port'])
-
-def create_service(srv_name, port, srv_type, user_name=None, password=None):
-    """
-    Creates a new service for a given user at a given port.
+    Creates a new managed service for a given user at a given port.
 
     Args:
         srv_name (str): A unique name for the service. Must be a valid
@@ -120,6 +67,168 @@ def create_service(srv_name, port, srv_type, user_name=None, password=None):
 
     return Service(srv_name, port)
 
+def destroy_managed_service(srv):
+    """
+    Destroys a managed service.
+
+    This will make the service unavailable, and delete all
+    jobs and information about them (including input and output
+    data) in this service and on the compute resource.
+
+    Args:
+        srv (Service): A managed service.
+    """
+    dc = docker.from_env()
+    container = dc.containers.get(srv._name)
+    container.stop()
+    container.remove()
+
+def managed_service_exists(srv_name):
+    """
+    Checks whether a managed service with the given name exists.
+
+    Args:
+        srv_name (str): Name of the service. Must be a valid Docker
+            container name.
+
+    Returns:
+        bool: True iff the service exists
+    """
+    dc = docker.from_env()
+    try:
+        dc.containers.get(srv_name)
+        return True
+    except docker.errors.NotFound:
+        return False
+
+def get_managed_service(srv_name, port):
+    """
+    Gets a managed service by name and port.
+
+    Args:
+        srv_name (str): Name that the service was created with. Must be
+            a valid Docker container name.
+        port (int): Port number that the service was created with.
+
+    Returns:
+        Service: The service, if it exists.
+
+    Raises:
+        ServiceNotFound: The requested service does not exist.
+    """
+    if not managed_service_exists(srv_name):
+        raise errors.ServiceNotFound()
+    return Service(srv_name, port)
+
+def require_managed_service(srv_name, port, srv_type, user_name=None, password=None):
+    """
+    Creates a new managed service for a given user at a given port, if
+    it does not already exist.
+
+    If a service with the given name already exists, it is returned
+    instead and no new service is created.
+
+    Args:
+        srv_name (str): A unique name for the service. Must be a valid
+            Docker container name.
+        port (int): A unique port number on which the service will be
+            made available. It will listen only on localhost.
+        srv_type (str): The type of service to launch. This is the name
+            of the Docker image to use.
+        user_name (str): The user name to use to connect to the compute
+            resource.
+        password (str): The password to use to connect to the compute
+            resource.
+
+    Returns:
+        Service: The created service
+
+    Raises:
+        ServiceAlreadyExists: A service with this name already exists.
+        PortNotAvailable: The requested port is occupied.
+    """
+    if managed_service_exists(srv_name):
+        return get_managed_service(srv_name, port)
+    return create_managed_service(srv_name, port, srv_type, user_name, password)
+
+
+# Starting and stopping managed services
+
+def managed_service_is_running(srv):
+    """
+    Checks whether the managed service is running.
+
+    Returns:
+        bool: True iff the service is running.
+    """
+    dc = docker.from_env()
+    container = dc.containers.get(srv._name)
+    return container.status == 'running'
+
+def start_managed_service(srv):
+    """
+    Start a stopped managed service.
+
+    Does nothing if the service is already running.
+    """
+    dc = docker.from_env()
+    container = dc.containers.get(srv._name)
+    container.start()
+    # Give it some time to start, so subsequent calls work
+    time.sleep(1)
+
+def stop_managed_service(srv):
+    """
+    Stop a running managed service.
+
+    This must be done before shutting down the computer, to ensure
+    a clean shutdown. Does nothing if the service is already
+    stopped.
+    """
+    dc = docker.from_env()
+    container = dc.containers.get(srv._name)
+    container.stop()
+
+
+# Serialisation of services
+
+def service_to_dict(srv):
+    """
+    Saves the service to a dictionary.
+
+    The dictionary can later be used to recreate the Service object
+    by passing it to service_from_dict(). The exact format of the
+    dictionary is not given, but it contains only Python built-in
+    types so that it can easily be stored or otherwise serialised.
+
+    Returns:
+        dict: A dictionary with information necessary to rebuild
+            the Service object.
+    """
+    return {
+            'name': srv._name,
+            'port': srv._port
+            }
+
+def service_from_dict(srv_dict):
+    """
+    Gets a service from a dictionary.
+
+    The dictionary must have been created by a call to
+    service_to_dict().
+
+    Args:
+        srv_dict (dict): A dictionary describing the service.
+
+    Returns:
+        Service: The service, if it exists.
+
+    Raises:
+        ServiceNotFound: The requested service does not exist.
+    """
+    return get_managed_service(srv_dict['name'], srv_dict['port'])
+
+
 class Service:
     def __init__(self, name, port):
         """
@@ -143,72 +252,6 @@ class Service:
         self._filestore = self._srv_loc + '/files'
         self._jobs = self._srv_loc + '/jobs'
 
-    def destroy(self):
-        """
-        Destroys the service.
-
-        This will make the service unavailable, and delete all
-        information about jobs (including input and output data)
-        contained within it.
-        """
-        dc = docker.from_env()
-        container = dc.containers.get(self._name)
-        container.stop()
-        container.remove()
-
-    def start(self):
-        """
-        Start a stopped service.
-
-        Does nothing if the service is already running.
-        """
-        dc = docker.from_env()
-        container = dc.containers.get(self._name)
-        container.start()
-        # Give it some time to start, so subsequent calls work
-        time.sleep(1)
-
-    def stop(self):
-        """
-        Stop a running service.
-
-        This must be done before shutting down the computer, to ensure
-        a clean shutdown. Does nothing if the service is already
-        stopped.
-        """
-        dc = docker.from_env()
-        container = dc.containers.get(self._name)
-        container.stop()
-
-    def is_running(self):
-        """
-        Checks whether the service is running.
-
-        Returns:
-            bool: True iff the service is running.
-        """
-        dc = docker.from_env()
-        container = dc.containers.get(self._name)
-        return container.status == 'running'
-
-    def to_dict(self):
-        """
-        Saves the Service to a dictionary.
-
-        The dictionary can later be used to recreate the Service object
-        by passing it to service_from_dict(). The exact format of the
-        dictionary is not given, but it contains only Python built-in
-        types so that it can easily be stored or otherwise serialised.
-
-        Returns:
-            dict: A dictionary with information necessary to rebuild
-                the Service object.
-        """
-        return {
-                'name': self._name,
-                'port': self._port
-                }
-
     def create_job(self, job_name):
         """
         Creates a job to run on the given service.
@@ -228,6 +271,30 @@ class Service:
         """
         self._create_input_dir(job_name)
         return Job(self, job_name)
+
+    def destroy_job(self, job):
+        """
+        Removes a job, including all its input and output data,
+        from the service.
+
+        Args:
+            job (Job): The job to be removed.
+
+        Raises:
+            JobNotFound: No job with this name or id was found on this
+                service. Did you destroy it twice?
+            CommunicationError: There was an error communicating with
+                the service.
+        """
+        self._delete_input_dir(job.name)
+        r = requests.delete(self._jobs + '/' + job.id)
+
+        if r.status_code == 404:
+            raise errors.JobNotFound("Either the input directory or the job could not be found.")
+
+        if r.status_code != 204:
+            raise errors.CommunicationError(r, r2)
+
 
     def get_job_by_id(self, job_id):
         """
@@ -452,31 +519,17 @@ class Service:
         job = self._get_job_from_service(job_id)
         return job['output']
 
-    def _delete_job(self, job_name, job_id):
+    def _delete_input_dir(self, job_name):
         """
-        Delete a job from the service.
+        Delete the input directory of the job with the given name.
 
         Args:
             job_name (str): The client-side name of the job.
-            job_id (str): The server-side job id.
-            input_files ([str]): A list of file names in the input
-                directory.
 
         Raises:
-            JobNotFound: The job is unknown to the service.
             CommunicationError: There was a problem communicating with
                 the service.
         """
-        self._delete_input_dir(job_name)
-        r = requests.delete(self._jobs + '/' + job_id)
-
-        if r.status_code == 404:
-            raise errors.JobNotFound("Either the input directory or the job could not be found.")
-
-        if r.status_code != 204:
-            raise errors.CommunicationError(r, r2)
-
-    def _delete_input_dir(self, job_name):
         import defusedxml.ElementTree as ET
 
         input_dir = self._input_dir(job_name)

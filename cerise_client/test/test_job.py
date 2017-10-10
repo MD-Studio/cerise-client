@@ -14,23 +14,7 @@ import cerise_client.job as cj
 import cerise_client.errors as ce
 
 from .fixtures import test_image, test_service, this_dir
-
-def _create_test_job(test_service, this_dir, name):
-    job = test_service.create_job(name)
-    r = requests.get('http://localhost:29593/files/input/' + name + '/')
-    assert r.status_code == 200
-
-    # run job to create some outputs
-    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
-    job.add_input_file('input_file', os.path.join(this_dir, 'test_workflow2.cwl'))
-    job.run()
-    while job.is_running():
-        time.sleep(0.1)
-    assert job.state == 'Success'
-
-    counts = job.outputs['counts']
-    assert counts.text != ''
-    return job
+from .fixtures import create_test_job
 
 
 def test_create_job_object(test_service):
@@ -132,30 +116,12 @@ def test_job_outputs(test_service, this_dir, tmpdir):
     job.outputs['counts'].save_as(outfile)
     assert 'test_workflow2.cwl' in open(outfile).read()
 
-def test_job_delete(test_service, this_dir):
-    job = _create_test_job(test_service, this_dir, 'test_job_delete')
-    counts = job.outputs['counts']
-
-    job.delete()
-
-    # check that inputs are gone
-    r = requests.get('http://localhost:29593/files/input/test_job_delete/')
-    assert r.status_code == 404
-
-    # check that outputs are gone, after the back-end has had time to respond
-    time.sleep(2)
-    with pytest.raises(ce.MissingOutput):
-        _ = counts.text
-
-    # check that the job is gone
-    assert job.state is None
-
 def test_job_log(test_service, this_dir):
-    job = _create_test_job(test_service, this_dir, 'test_job_log')
+    job = create_test_job(test_service, this_dir, 'test_job_log')
     assert 'Final process status is success' in job.log
 
 def test_nonexistent_job_log(test_service, this_dir):
-    job = _create_test_job(test_service, this_dir, 'test_nonexistent_job_log')
+    job = create_test_job(test_service, this_dir, 'test_nonexistent_job_log')
     job.id = 'nonexistent'
     with pytest.raises(ce.JobNotFound):
         _ = job.log

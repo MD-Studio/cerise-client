@@ -15,6 +15,7 @@ test:
 
 .PHONY: dist
 dist:
+	rm MANIFEST
 	rm -rf dist
 	python setup.py bdist_wheel --universal
 	# Upload with

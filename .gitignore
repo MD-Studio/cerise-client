@@ -6,5 +6,6 @@
 .coverage
 build/**
 dist/**
+MANIFEST
 cerise_client.egg-info/**
 examples/counts.txt

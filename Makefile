@@ -13,8 +13,9 @@ docs:
 test:
 	python -m pytest -x --cov
 
-
+.PHONY: dist
 dist:
+	rm -rf dist
 	python setup.py bdist_wheel --universal
 	# Upload with
 	# twine upload dist/*

@@ -4,3 +4,7 @@
 **/*.swp
 **/.cache/**
 .coverage
+build/**
+dist/**
+cerise_client.egg-info/**
+examples/counts.txt

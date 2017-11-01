@@ -12,10 +12,10 @@ job.add_input_file('input_file', __file__)
 job.run()
 
 # Give the service a chance to stage the job
-while job.status == 'Waiting':
+while job.state == 'Waiting':
     time.sleep(1)
 
-persisted_srv = srv.to_dict()
+persisted_srv = cc.service_to_dict(srv)
 persisted_job = job.id
 
 cc.stop_managed_service(srv)
@@ -28,6 +28,7 @@ cc.stop_managed_service(srv)
 # get dict from persistent storage
 
 srv = cc.service_from_dict(persisted_srv)
+cc.start_managed_service(srv)
 job = srv.get_job_by_id(persisted_job)
 
 while job.is_running():
@@ -37,8 +38,8 @@ if job.state == 'Success':
     job.outputs['counts'].save_as('counts.txt')
 else:
     print('There was an error: ' + job.state)
-    job.log.save_as('job.log')
-    print('Job log saved as job.log')
+    print('Job log:')
+    print(job.log)
 
 srv.destroy_job(job)
 

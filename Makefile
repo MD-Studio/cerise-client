@@ -12,3 +12,14 @@ docs:
 .PHONY: test
 test:
 	python -m pytest -x --cov
+
+
+dist:
+	python setup.py bdist_wheel --universal
+	# Upload with
+	# twine upload dist/*
+	# after checking version numbers again!
+
+.PHONY: dist-clean
+dist-clean:
+	rm -rf ./dist

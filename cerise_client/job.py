@@ -4,7 +4,7 @@ import os
 
 class Job:
     def __init__(self, service, name, job_id=None, inputs=None,
-            workflow=None, input_desc=None, outputs=None):
+            workflow=None, input_desc=None):
         """
         Create a new Job object.
 
@@ -35,9 +35,8 @@ class Job:
         """The input description object to be submitted."""
         if self._input_desc is None: self._input_desc = {}
 
-        self._outputs = outputs
+        self._outputs = {}
         """Cached results."""
-        if self._outputs is None: self._outputs = {}
 
     @property
     def state(self):

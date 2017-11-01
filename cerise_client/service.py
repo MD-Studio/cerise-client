@@ -314,8 +314,7 @@ class Service:
         job = self._get_job_from_service(job_id)
         declared_inputs = None
         return Job(self, job['name'], job['id'],
-                declared_inputs, job['workflow'], job['input'],
-                job['output'])
+                declared_inputs, job['workflow'], job['input'])
 
     def get_job_by_name(self, job_name):
         """
@@ -358,7 +357,7 @@ class Service:
             raise errors.CommunicationError(r)
         jobs_json = r.json()
         return [Job(self, job['name'], job['id'], None,
-                    job['workflow'], job['input'], job['output'])
+                    job['workflow'], job['input'])
                 for job in jobs_json]
 
     def _input_dir(self, job_name):

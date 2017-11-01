@@ -223,6 +223,10 @@ def test_get_job_by_id(test_service, this_dir):
     assert job._input_desc == job2._input_desc
     assert job._outputs == job2._outputs
 
+    _ = job.outputs
+    job3 = test_service.get_job_by_id(job.id)
+    assert job._outputs == job3._outputs
+
 def test_nonexistent_job_by_id(test_service):
     with pytest.raises(ce.JobNotFound):
         test_service.get_job_by_id('surely_this_id_does_not_exist')

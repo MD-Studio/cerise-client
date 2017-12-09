@@ -41,6 +41,13 @@ def test_add_input_file(test_service, this_dir):
     job = test_service.create_job('test_add_input_file')
     job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
     job.add_input_file('input_file', os.path.join(this_dir, 'test_job.py'))
+
+    assert 'input_file' in job._input_desc
+    assert 'class' in job._input_desc['input_file']
+    assert 'location' in job._input_desc['input_file']
+    assert 'basename' in job._input_desc['input_file']
+    assert job._input_desc['input_file']['basename'] == 'test_job.py'
+
     r = requests.get('http://localhost:29593/files/input/test_add_input_file/test_job.py')
     assert r.status_code == 200
 

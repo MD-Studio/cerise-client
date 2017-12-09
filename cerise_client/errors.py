@@ -46,9 +46,16 @@ class InvalidJob(Exception):
 class UnknownInput(Exception):
     """
     You tried to set the value for an input that is not in the workflow
-    for the job you are creating.
+    for the job you are creating. Did you add the workflow first?
     """
     pass
+
+class NoPrimaryFile(Exception):
+    """
+    You tried to set a secondary file for an input for which no primary
+    file is set. Use add_input_file() first, then add_secondary_file()
+    with the same input name.
+    """
 
 class MissingOutput(Exception):
     """

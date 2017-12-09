@@ -1,4 +1,5 @@
 from .output_file import OutputFile
+from . import errors
 
 import os
 
@@ -93,8 +94,8 @@ class Job:
         The set_workflow() function must be called before this one.
         The input name must correspond to an input defined in the
         workflow. The file's name must not equal that of any other
-        file added using this function, or that of the workflow
-        itself.
+        file added using this function or add_secondary_file(), or
+        that of the workflow itself.
 
         If this function is called repeatedly with the same input
         name, the last file will be used.
@@ -120,6 +121,49 @@ class Job:
                 "location": remote_url,
                 "basename": os.path.basename(file_path)
                 }
+
+    def add_secondary_file(self, input_name, file_path):
+        """
+        Adds a secondary file for the given workflow input.
+
+        A primary file must be set using add_input_file() first.
+
+        The input name must correspond to an input defined in the
+        workflow. The file's name must not equal that of any other
+        file added using this function or add_secondary_file(), or
+        that of the workflow itself.
+
+        Note that this function will upload the input file to the
+        service for this job. If the file is large and/or the
+        connection slow, then this will take a while.
+
+        Args:
+            input_name (str): The name of a workflow input.
+            file_path (str): The path to the input file to use.
+
+        Raises:
+            UnknownInput: The input name does not match any in this
+                workflow, or the workflow was not yet set.
+            FileNotFoundError: The file to be used was not found.
+            NoPrimaryFile: No primary file was set yet via \
+                add_input_file().
+        """
+        if not input_name in self._input_desc:
+            raise errors.NoPrimaryFile('Primary file not set yet')
+
+        if not os.path.exists(file_path):
+            raise FileNotFoundError('Input file not found')
+
+        remote_url = self._service._upload_file(self.name, file_path)
+
+        if not 'secondaryFiles' in self._input_desc[input_name]:
+            self._input_desc[input_name]['secondaryFiles'] = []
+
+        self._input_desc[input_name]['secondaryFiles'].append({
+                "class": "File",
+                "location": remote_url,
+                "basename": os.path.basename(file_path)
+                })
 
     def set_input(self, input_name, value):
         """

@@ -202,11 +202,3 @@ class Job:
                         self._outputs[key] = value
 
         return self._outputs
-
-    def delete(self):
-        """
-        Deletes the job and all its input and output data from the
-        service.
-        """
-        self._service._delete_job(self.name, self.id)
-        self.id = None

@@ -35,7 +35,7 @@ class Job:
         """The input description object to be submitted."""
         if self._input_desc is None: self._input_desc = {}
 
-        self._outputs = {}
+        self._outputs = None
         """Cached results."""
 
     @property
@@ -190,14 +190,16 @@ class Job:
         Returns:
             Union[dict, None]: Output values or None.
         """
-        if self._outputs == {}:
+        if self._outputs is None:
             outputs = self._service._get_outputs(self.id)
-            for key, value in outputs.items():
-                if isinstance(value, dict):
-                    if value.get('class', '') == 'File':
-                        self._outputs[key] = OutputFile(value['location'])
-                else:
-                    self._outputs[key] = value
+            if outputs != {}:
+                self._outputs = {}
+                for key, value in outputs.items():
+                    if isinstance(value, dict):
+                        if value.get('class', '') == 'File':
+                            self._outputs[key] = OutputFile(value['location'])
+                    else:
+                        self._outputs[key] = value
 
         return self._outputs
 

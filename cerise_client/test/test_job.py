@@ -29,6 +29,12 @@ def test_set_workflow(test_service, this_dir):
     r = requests.get('http://localhost:29593/files/input/test_set_workflow/test_workflow.cwl')
     assert r.status_code == 200
 
+def test_set_missing_workflow(test_service, this_dir):
+    job = test_service.create_job('test_set_missing_workflow')
+    workflow_path = os.path.join(this_dir, 'does_not_exist')
+    with pytest.raises(FileNotFoundError):
+        job.set_workflow(workflow_path)
+
 def test_set_workflow_repeatedly(test_service, this_dir):
     job = test_service.create_job('test_set_workflow_repeatedly')
     job.set_workflow(os.path.join(this_dir, 'test_workflow.cwl'))
@@ -51,6 +57,13 @@ def test_add_input_file(test_service, this_dir):
     r = requests.get('http://localhost:29593/files/input/test_add_input_file/test_job.py')
     assert r.status_code == 200
 
+def test_add_missing_input_file(test_service, this_dir):
+    job = test_service.create_job('test_add_missing_input_file')
+    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
+    with pytest.raises(FileNotFoundError):
+        job.add_input_file('input_file', os.path.join(this_dir, 'does_not_exist'))
+
+
 # TODO: check incorrect type and non-existent input, when implemented
 
 def test_add_secondary_file(test_service, this_dir):
@@ -70,14 +83,14 @@ def test_add_secondary_file(test_service, this_dir):
     assert sf[1]['location'] == 'http://localhost:29593/files/input/test_add_secondary_file/test_workflow3.cwl'
     assert sf[1]['basename'] == 'test_workflow3.cwl'
 
-def test_add_secondary_file2(test_service, this_dir):
-    job = test_service.create_job('test_add_secondary_file')
+def test_add_orphan_secondary_file(test_service, this_dir):
+    job = test_service.create_job('test_add_orphan_secondary_file')
     job.set_workflow(os.path.join(this_dir, 'test_workflow.cwl'))
     with pytest.raises(ce.NoPrimaryFile):
         job.add_secondary_file('input_file', os.path.join(this_dir, 'test_workflow2.cwl'))
 
-def test_add_secondary_file3(test_service, this_dir):
-    job = test_service.create_job('test_add_secondary_file')
+def test_add_missing_secondary_file(test_service, this_dir):
+    job = test_service.create_job('test_add_missing_secondary_file')
     job.set_workflow(os.path.join(this_dir, 'test_workflow.cwl'))
     job.add_input_file('input_file', os.path.join(this_dir, 'test_job.py'))
     with pytest.raises(FileNotFoundError):

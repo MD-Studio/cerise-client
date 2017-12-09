@@ -77,11 +77,17 @@ def destroy_managed_service(srv):
 
     Args:
         srv (Service): A managed service.
+
+    Raises:
+        ServiceNotFound: A service with this name was not found.
     """
     dc = docker.from_env()
-    container = dc.containers.get(srv._name)
-    container.stop()
-    container.remove()
+    try:
+        container = dc.containers.get(srv._name)
+        container.stop()
+        container.remove()
+    except docker.errors.NotFound:
+        raise errors.ServiceNotFound()
 
 def managed_service_exists(srv_name):
     """
@@ -144,7 +150,6 @@ def require_managed_service(srv_name, port, srv_type, user_name=None, password=N
         Service: The created service
 
     Raises:
-        ServiceAlreadyExists: A service with this name already exists.
         PortNotAvailable: The requested port is occupied.
     """
     if managed_service_exists(srv_name):
@@ -526,6 +531,7 @@ class Service:
             job_name (str): The client-side name of the job.
 
         Raises:
+            JobNotFound: The input directory did not exist.
             CommunicationError: There was a problem communicating with
                 the service.
         """
@@ -540,6 +546,8 @@ class Service:
 
         for file_path in file_list:
             r = requests.delete(self._srv_loc + file_path)
+            if r.status_code == 404:
+                raise errors.JobNotFound(r)
             if r.status_code != 204:
                 raise errors.CommunicationError(r)
 

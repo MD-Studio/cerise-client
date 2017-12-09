@@ -15,6 +15,7 @@ clean_up()
 
 import cerise_client.service as cs
 import cerise_client.errors as ce
+import cerise_client.job as cj
 from .clean_up import clean_up_service
 
 from .fixtures import docker_client, test_image, test_service, this_dir
@@ -102,6 +103,11 @@ def test_destroy_managed_service(docker_client, test_service):
     with pytest.raises(docker.errors.NotFound):
         docker_client.containers.get('cerise_client_test_service')
 
+def test_destroy_missing_managed_service(docker_client):
+    srv = cs.Service('non_existing_service', 29593)
+    with pytest.raises(ce.ServiceNotFound):
+        cs.destroy_managed_service(srv)
+
 def test_require_managed_service(docker_client):
     srv = cs.require_managed_service('cerise_client_test_service', 29593,
             'mdstudio/cerise:develop')
@@ -114,6 +120,11 @@ def test_require_existing_managed_service(docker_client, test_service):
     assert isinstance(srv, cs.Service)
     assert srv._name == 'cerise_client_test_service'
     assert srv._port == 29593
+
+def test_require_managed_server_occupied_port(docker_client, test_service):
+    with pytest.raises(ce.PortNotAvailable):
+        srv = cs.require_managed_service('cerise_client_test_service2', 29593,
+                'mdstudio/cerise:develop')
 
 def test_start_running_service(docker_client, test_service):
     container = docker_client.containers.get('cerise_client_test_service')
@@ -209,6 +220,11 @@ def test_destroy_job(test_service, this_dir):
     with pytest.raises(ce.JobNotFound):
         _ = job.state
 
+def test_destroy_nonexistant_job(test_service):
+    job = cj.Job(test_service, 'test_destroy_nonexistant_job', 'nonexistant_id')
+    with pytest.raises(ce.JobNotFound):
+        test_service.destroy_job(job)
+
 def test_get_job_by_id(test_service, this_dir):
     job = test_service.create_job('test_get_job_by_id')
     job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
@@ -273,3 +289,7 @@ def test_get_job_by_name(test_service, this_dir):
 
     with pytest.raises(ce.JobNotFound):
         job3 = test_service.get_job_by_name('no_such_job')
+
+def test_get_missing_job_by_name(test_service):
+    with pytest.raises(ce.JobNotFound):
+        job = test_service.get_job_by_name('does_not_exist')

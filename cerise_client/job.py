@@ -74,8 +74,8 @@ class Job:
                 that of any file added using add_input_file().
 
         Raises:
-            FileNotFound: The workflow file was not found at the given
-                path.
+            FileNotFound: The workflow file was not found at the
+                given path.
         """
         # scan workflow for inputs and store them in the object
         # list of (name, type) tuples? or {name: type}?
@@ -144,15 +144,12 @@ class Job:
         Raises:
             UnknownInput: The input name does not match any in this
                 workflow, or the workflow was not yet set.
-            FileNotFoundError: The file to be used was not found.
+            FileNotFound: The file to be used was not found.
             NoPrimaryFile: No primary file was set yet via \
                 add_input_file().
         """
         if not input_name in self._input_desc:
             raise errors.NoPrimaryFile('Primary file not set yet')
-
-        if not os.path.exists(file_path):
-            raise FileNotFoundError('Input file not found')
 
         remote_url = self._service._upload_file(self.name, file_path)
 

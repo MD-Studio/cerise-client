@@ -3,6 +3,7 @@ from .job import Job
 
 import docker
 
+import errno
 import os
 import requests
 import time
@@ -419,8 +420,12 @@ class Service:
         base_name = os.path.basename(local_file_path)
         remote_url = self._input_dir(job_name) + '/' + base_name
 
-        with open(local_file_path, 'rb') as local_file:
-            requests.put(remote_url, data=local_file.read())
+        try:
+            with open(local_file_path, 'rb') as local_file:
+                requests.put(remote_url, data=local_file.read())
+        except IOError as e:
+            if e.errno == errno.ENOENT:
+                raise errors.FileNotFound()
 
         return remote_url
 

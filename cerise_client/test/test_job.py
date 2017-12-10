@@ -32,7 +32,7 @@ def test_set_workflow(test_service, this_dir):
 def test_set_missing_workflow(test_service, this_dir):
     job = test_service.create_job('test_set_missing_workflow')
     workflow_path = os.path.join(this_dir, 'does_not_exist')
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(ce.FileNotFound):
         job.set_workflow(workflow_path)
 
 def test_set_workflow_repeatedly(test_service, this_dir):
@@ -60,7 +60,7 @@ def test_add_input_file(test_service, this_dir):
 def test_add_missing_input_file(test_service, this_dir):
     job = test_service.create_job('test_add_missing_input_file')
     job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(ce.FileNotFound):
         job.add_input_file('input_file', os.path.join(this_dir, 'does_not_exist'))
 
 
@@ -93,7 +93,7 @@ def test_add_missing_secondary_file(test_service, this_dir):
     job = test_service.create_job('test_add_missing_secondary_file')
     job.set_workflow(os.path.join(this_dir, 'test_workflow.cwl'))
     job.add_input_file('input_file', os.path.join(this_dir, 'test_job.py'))
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(ce.FileNotFound):
         job.add_secondary_file('input_file', os.path.join(this_dir, 'does_not_exist'))
 
 def test_set_input(test_service, this_dir):

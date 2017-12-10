@@ -63,6 +63,12 @@ class MissingOutput(Exception):
     file. Maybe the job was deleted?
     """
 
+class FileNotFound(Exception):
+    """
+    The file you tried to set as a workflow input was not found. Is the
+    path correct? Does the file exist?
+    """
+
 class CommunicationError(Exception):
     """
     There was an error communicating with the service.

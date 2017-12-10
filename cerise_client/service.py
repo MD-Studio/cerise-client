@@ -6,6 +6,8 @@ import docker
 import errno
 import os
 import requests
+import tarfile
+import tempfile
 import time
 
 # Creating and destroying services
@@ -366,6 +368,29 @@ class Service:
                     job['workflow'], job['input'])
                 for job in jobs_json]
 
+    def get_log(self):
+        """
+        Get the internal Cerise log for this service. If things are not
+        working as you expect them to (e.g. a job status of
+        SystemError), the log may contain useful information on what
+        went wrong.
+
+        Returns:
+            str: The job log
+        """
+        dc = docker.from_env()
+        container = dc.containers.get(self._name)
+        stream, stat = container.get_archive('/var/log/cerise/cerise_backend.log')
+        with tempfile.TemporaryFile() as tmp:
+            tmp.write(stream.read())
+            tmp.seek(0)
+            with tarfile.open(fileobj=tmp) as archive:
+                # Scope guard does not work in Python 2
+                logfile = archive.extractfile('cerise_backend.log')
+                service_log = logfile.read().decode('utf-8')
+                logfile.close()
+        return service_log
+
     def _input_dir(self, job_name):
         """
         Returns the remote URL for the input data directory for the
@@ -488,7 +513,7 @@ class Service:
         job = self._get_job_from_service(job_id)
         return job['state']
 
-    def _get_log(self, job_id):
+    def _get_job_log(self, job_id):
         """
         Get the log of the given job.
 

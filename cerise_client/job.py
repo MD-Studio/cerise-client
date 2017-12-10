@@ -58,7 +58,7 @@ class Job:
         The job's log, as produced by the service.
         """
         if self.id is not None:
-            return self._service._get_log(self.id)
+            return self._service._get_job_log(self.id)
         return None
 
     def set_workflow(self, file_path):

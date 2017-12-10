@@ -33,7 +33,8 @@ class JobNotFound(Exception):
 class JobAlreadyExists(Exception):
     """
     You tried to create a job with a name that already existed on this
-    service. Jobs must have a unique name.
+    service. Jobs must have a unique name, and cannot be submitted
+    twice.
     """
     pass
 

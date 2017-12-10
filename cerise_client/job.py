@@ -187,6 +187,9 @@ class Job:
         Returns:
             str: The id given to this job by the service.
         """
+        if self.id is not None:
+            raise errors.JobAlreadyExists()
+
         job_desc = {
                 'name': self.name,
                 'workflow': self._workflow_url,

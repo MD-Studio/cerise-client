@@ -115,6 +115,14 @@ def test_run_invalid_job(test_service):
     with pytest.raises(ce.InvalidJob):
         _ = job.run()
 
+def test_no_rerun_job(test_service, this_dir):
+    job = test_service.create_job('test_no_rerun_job')
+    job.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
+    job.set_input('time', 2)
+    job_id = job.run()
+    with pytest.raises(ce.JobAlreadyExists):
+        _ = job.run()
+
 def test_job_is_running(test_service, this_dir):
     job = test_service.create_job('test_job_is_running')
     job.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))

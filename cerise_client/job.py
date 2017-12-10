@@ -1,4 +1,5 @@
 from .output_file import OutputFile
+from . import errors
 
 import os
 
@@ -16,27 +17,27 @@ class Job:
             name (str): The name for the job.
         """
         self.id = job_id
-        """The service-assigned id of this job."""
+        """str: The service-assigned id of this job."""
 
         self.name = name
-        """The name of this job."""
+        """str: The name of this job."""
 
         self._service = service
-        """The service that this job runs on."""
+        """Service: The service that this job runs on."""
 
         self._inputs = inputs
-        """List of declared inputs of the workflow."""
+        """[str]: List of declared inputs of the workflow."""
         if self._inputs is None: self._inputs = []
 
         self._workflow_url = workflow
-        """The remote path to the uploaded workflow file."""
+        """str: The remote path to the uploaded workflow file."""
 
         self._input_desc = input_desc
-        """The input description object to be submitted."""
+        """dict: The input description object to be submitted."""
         if self._input_desc is None: self._input_desc = {}
 
-        self._outputs = {}
-        """Cached results."""
+        self._outputs = None
+        """dict: Cached results."""
 
     @property
     def state(self):
@@ -54,10 +55,10 @@ class Job:
     @property
     def log(self):
         """
-        The job's log, as produced by the service.
+        str: The job's log, as produced by the service.
         """
         if self.id is not None:
-            return self._service._get_log(self.id)
+            return self._service._get_job_log(self.id)
         return None
 
     def set_workflow(self, file_path):
@@ -73,8 +74,8 @@ class Job:
                 that of any file added using add_input_file().
 
         Raises:
-            FileNotFound: The workflow file was not found at the given
-                path.
+            FileNotFound: The workflow file was not found at the
+                given path.
         """
         # scan workflow for inputs and store them in the object
         # list of (name, type) tuples? or {name: type}?
@@ -93,8 +94,8 @@ class Job:
         The set_workflow() function must be called before this one.
         The input name must correspond to an input defined in the
         workflow. The file's name must not equal that of any other
-        file added using this function, or that of the workflow
-        itself.
+        file added using this function or add_secondary_file(), or
+        that of the workflow itself.
 
         If this function is called repeatedly with the same input
         name, the last file will be used.
@@ -121,6 +122,46 @@ class Job:
                 "basename": os.path.basename(file_path)
                 }
 
+    def add_secondary_file(self, input_name, file_path):
+        """
+        Adds a secondary file for the given workflow input.
+
+        A primary file must be set using add_input_file() first.
+
+        The input name must correspond to an input defined in the
+        workflow. The file's name must not equal that of any other
+        file added using this function or add_secondary_file(), or
+        that of the workflow itself.
+
+        Note that this function will upload the input file to the
+        service for this job. If the file is large and/or the
+        connection slow, then this will take a while.
+
+        Args:
+            input_name (str): The name of a workflow input.
+            file_path (str): The path to the input file to use.
+
+        Raises:
+            UnknownInput: The input name does not match any in this
+                workflow, or the workflow was not yet set.
+            FileNotFound: The file to be used was not found.
+            NoPrimaryFile: No primary file was set yet via \
+                add_input_file().
+        """
+        if not input_name in self._input_desc:
+            raise errors.NoPrimaryFile('Primary file not set yet')
+
+        remote_url = self._service._upload_file(self.name, file_path)
+
+        if not 'secondaryFiles' in self._input_desc[input_name]:
+            self._input_desc[input_name]['secondaryFiles'] = []
+
+        self._input_desc[input_name]['secondaryFiles'].append({
+                "class": "File",
+                "location": remote_url,
+                "basename": os.path.basename(file_path)
+                })
+
     def set_input(self, input_name, value):
         """
         Sets the value of a workflow input.
@@ -146,6 +187,9 @@ class Job:
         Returns:
             str: The id given to this job by the service.
         """
+        if self.id is not None:
+            raise errors.JobAlreadyExists()
+
         job_desc = {
                 'name': self.name,
                 'workflow': self._workflow_url,
@@ -190,21 +234,15 @@ class Job:
         Returns:
             Union[dict, None]: Output values or None.
         """
-        if self._outputs == {}:
+        if self._outputs is None:
             outputs = self._service._get_outputs(self.id)
-            for key, value in outputs.items():
-                if isinstance(value, dict):
-                    if value.get('class', '') == 'File':
-                        self._outputs[key] = OutputFile(value['location'])
-                else:
-                    self._outputs[key] = value
+            if outputs != {}:
+                self._outputs = {}
+                for key, value in outputs.items():
+                    if isinstance(value, dict):
+                        if value.get('class', '') == 'File':
+                            self._outputs[key] = OutputFile(value['location'])
+                    else:
+                        self._outputs[key] = value
 
         return self._outputs
-
-    def delete(self):
-        """
-        Deletes the job and all its input and output data from the
-        service.
-        """
-        self._service._delete_job(self.name, self.id)
-        self.id = None

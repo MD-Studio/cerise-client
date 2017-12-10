@@ -29,6 +29,12 @@ def test_set_workflow(test_service, this_dir):
     r = requests.get('http://localhost:29593/files/input/test_set_workflow/test_workflow.cwl')
     assert r.status_code == 200
 
+def test_set_missing_workflow(test_service, this_dir):
+    job = test_service.create_job('test_set_missing_workflow')
+    workflow_path = os.path.join(this_dir, 'does_not_exist')
+    with pytest.raises(ce.FileNotFound):
+        job.set_workflow(workflow_path)
+
 def test_set_workflow_repeatedly(test_service, this_dir):
     job = test_service.create_job('test_set_workflow_repeatedly')
     job.set_workflow(os.path.join(this_dir, 'test_workflow.cwl'))
@@ -41,10 +47,54 @@ def test_add_input_file(test_service, this_dir):
     job = test_service.create_job('test_add_input_file')
     job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
     job.add_input_file('input_file', os.path.join(this_dir, 'test_job.py'))
+
+    assert 'input_file' in job._input_desc
+    assert 'class' in job._input_desc['input_file']
+    assert 'location' in job._input_desc['input_file']
+    assert 'basename' in job._input_desc['input_file']
+    assert job._input_desc['input_file']['basename'] == 'test_job.py'
+
     r = requests.get('http://localhost:29593/files/input/test_add_input_file/test_job.py')
     assert r.status_code == 200
 
+def test_add_missing_input_file(test_service, this_dir):
+    job = test_service.create_job('test_add_missing_input_file')
+    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
+    with pytest.raises(ce.FileNotFound):
+        job.add_input_file('input_file', os.path.join(this_dir, 'does_not_exist'))
+
+
 # TODO: check incorrect type and non-existent input, when implemented
+
+def test_add_secondary_file(test_service, this_dir):
+    job = test_service.create_job('test_add_secondary_file')
+    job.set_workflow(os.path.join(this_dir, 'test_workflow.cwl'))
+    job.add_input_file('input_file', os.path.join(this_dir, 'test_job.py'))
+    job.add_secondary_file('input_file', os.path.join(this_dir, 'test_workflow2.cwl'))
+    job.add_secondary_file('input_file', os.path.join(this_dir, 'test_workflow3.cwl'))
+
+    assert 'secondaryFiles' in job._input_desc['input_file']
+    sf = job._input_desc['input_file']['secondaryFiles']
+    assert isinstance(sf, list)
+    assert sf[0]['class'] == 'File'
+    assert sf[0]['location'] == 'http://localhost:29593/files/input/test_add_secondary_file/test_workflow2.cwl'
+    assert sf[0]['basename'] == 'test_workflow2.cwl'
+    assert sf[1]['class'] == 'File'
+    assert sf[1]['location'] == 'http://localhost:29593/files/input/test_add_secondary_file/test_workflow3.cwl'
+    assert sf[1]['basename'] == 'test_workflow3.cwl'
+
+def test_add_orphan_secondary_file(test_service, this_dir):
+    job = test_service.create_job('test_add_orphan_secondary_file')
+    job.set_workflow(os.path.join(this_dir, 'test_workflow.cwl'))
+    with pytest.raises(ce.NoPrimaryFile):
+        job.add_secondary_file('input_file', os.path.join(this_dir, 'test_workflow2.cwl'))
+
+def test_add_missing_secondary_file(test_service, this_dir):
+    job = test_service.create_job('test_add_missing_secondary_file')
+    job.set_workflow(os.path.join(this_dir, 'test_workflow.cwl'))
+    job.add_input_file('input_file', os.path.join(this_dir, 'test_job.py'))
+    with pytest.raises(ce.FileNotFound):
+        job.add_secondary_file('input_file', os.path.join(this_dir, 'does_not_exist'))
 
 def test_set_input(test_service, this_dir):
     job = test_service.create_job('test_set_input')
@@ -63,6 +113,14 @@ def test_run_job(test_service, this_dir):
 def test_run_invalid_job(test_service):
     job = test_service.create_job('test_run_invalid_job')
     with pytest.raises(ce.InvalidJob):
+        _ = job.run()
+
+def test_no_rerun_job(test_service, this_dir):
+    job = test_service.create_job('test_no_rerun_job')
+    job.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
+    job.set_input('time', 2)
+    job_id = job.run()
+    with pytest.raises(ce.JobAlreadyExists):
         _ = job.run()
 
 def test_job_is_running(test_service, this_dir):

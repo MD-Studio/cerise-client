@@ -3,8 +3,11 @@ from .job import Job
 
 import docker
 
+import errno
 import os
 import requests
+import tarfile
+import tempfile
 import time
 
 # Creating and destroying services
@@ -77,11 +80,17 @@ def destroy_managed_service(srv):
 
     Args:
         srv (Service): A managed service.
+
+    Raises:
+        ServiceNotFound: A service with this name was not found.
     """
     dc = docker.from_env()
-    container = dc.containers.get(srv._name)
-    container.stop()
-    container.remove()
+    try:
+        container = dc.containers.get(srv._name)
+        container.stop()
+        container.remove()
+    except docker.errors.NotFound:
+        raise errors.ServiceNotFound()
 
 def managed_service_exists(srv_name):
     """
@@ -144,7 +153,6 @@ def require_managed_service(srv_name, port, srv_type, user_name=None, password=N
         Service: The created service
 
     Raises:
-        ServiceAlreadyExists: A service with this name already exists.
         PortNotAvailable: The requested port is occupied.
     """
     if managed_service_exists(srv_name):
@@ -244,9 +252,9 @@ class Service:
             port (int): The port number on which the service runs.
         """
         self._name = name
-        """The name of this service, and its Docker container."""
+        """str: The name of this service, and its Docker container."""
         self._port = port
-        """The port number on localhost that the service listens on."""
+        """int: The port number on localhost that the service listens on."""
 
         self._srv_loc = 'http://localhost:' + str(self._port)
         self._filestore = self._srv_loc + '/files'
@@ -360,6 +368,29 @@ class Service:
                     job['workflow'], job['input'])
                 for job in jobs_json]
 
+    def get_log(self):
+        """
+        Get the internal Cerise log for this service. If things are not
+        working as you expect them to (e.g. a job status of
+        SystemError), the log may contain useful information on what
+        went wrong.
+
+        Returns:
+            str: The job log
+        """
+        dc = docker.from_env()
+        container = dc.containers.get(self._name)
+        stream, stat = container.get_archive('/var/log/cerise/cerise_backend.log')
+        with tempfile.TemporaryFile() as tmp:
+            tmp.write(stream.read())
+            tmp.seek(0)
+            with tarfile.open(fileobj=tmp) as archive:
+                # Scope guard does not work in Python 2
+                logfile = archive.extractfile('cerise_backend.log')
+                service_log = logfile.read().decode('utf-8')
+                logfile.close()
+        return service_log
+
     def _input_dir(self, job_name):
         """
         Returns the remote URL for the input data directory for the
@@ -414,8 +445,12 @@ class Service:
         base_name = os.path.basename(local_file_path)
         remote_url = self._input_dir(job_name) + '/' + base_name
 
-        with open(local_file_path, 'rb') as local_file:
-            requests.put(remote_url, data=local_file.read())
+        try:
+            with open(local_file_path, 'rb') as local_file:
+                requests.put(remote_url, data=local_file.read())
+        except IOError as e:
+            if e.errno == errno.ENOENT:
+                raise errors.FileNotFound()
 
         return remote_url
 
@@ -478,7 +513,7 @@ class Service:
         job = self._get_job_from_service(job_id)
         return job['state']
 
-    def _get_log(self, job_id):
+    def _get_job_log(self, job_id):
         """
         Get the log of the given job.
 
@@ -526,6 +561,7 @@ class Service:
             job_name (str): The client-side name of the job.
 
         Raises:
+            JobNotFound: The input directory did not exist.
             CommunicationError: There was a problem communicating with
                 the service.
         """
@@ -540,6 +576,8 @@ class Service:
 
         for file_path in file_list:
             r = requests.delete(self._srv_loc + file_path)
+            if r.status_code == 404:
+                raise errors.JobNotFound(r)
             if r.status_code != 204:
                 raise errors.CommunicationError(r)
 

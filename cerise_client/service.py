@@ -252,9 +252,9 @@ class Service:
             port (int): The port number on which the service runs.
         """
         self._name = name
-        """The name of this service, and its Docker container."""
+        """str: The name of this service, and its Docker container."""
         self._port = port
-        """The port number on localhost that the service listens on."""
+        """int: The port number on localhost that the service listens on."""
 
         self._srv_loc = 'http://localhost:' + str(self._port)
         self._filestore = self._srv_loc + '/files'

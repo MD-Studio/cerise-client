@@ -17,27 +17,27 @@ class Job:
             name (str): The name for the job.
         """
         self.id = job_id
-        """The service-assigned id of this job."""
+        """str: The service-assigned id of this job."""
 
         self.name = name
-        """The name of this job."""
+        """str: The name of this job."""
 
         self._service = service
-        """The service that this job runs on."""
+        """Service: The service that this job runs on."""
 
         self._inputs = inputs
-        """List of declared inputs of the workflow."""
+        """[str]: List of declared inputs of the workflow."""
         if self._inputs is None: self._inputs = []
 
         self._workflow_url = workflow
-        """The remote path to the uploaded workflow file."""
+        """str: The remote path to the uploaded workflow file."""
 
         self._input_desc = input_desc
-        """The input description object to be submitted."""
+        """dict: The input description object to be submitted."""
         if self._input_desc is None: self._input_desc = {}
 
         self._outputs = None
-        """Cached results."""
+        """dict: Cached results."""
 
     @property
     def state(self):
@@ -55,7 +55,7 @@ class Job:
     @property
     def log(self):
         """
-        The job's log, as produced by the service.
+        str: The job's log, as produced by the service.
         """
         if self.id is not None:
             return self._service._get_job_log(self.id)

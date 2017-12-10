@@ -295,6 +295,8 @@ def test_get_missing_job_by_name(test_service):
         job = test_service.get_job_by_name('does_not_exist')
 
 def test_get_log(test_service):
+    # Give it a bit of time to start up, esp. on Travis
+    time.sleep(5)
     log = test_service.get_log()
     assert isinstance(log, str) or isinstance(log, unicode)
     assert log != ''

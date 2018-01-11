@@ -42,10 +42,12 @@ def create_managed_service(srv_name, port, srv_type, user_name=None, password=No
     except docker.errors.NotFound:
         pass
 
+    environment = {}
+    environment['CERISE_STORE_LOCATION_CLIENT'] = 'http://localhost:{}/files'.format(port)
+
     if user_name == '':
         user_name = None
 
-    environment = {}
     if user_name is not None:
         environment['CERISE_USERNAME'] = user_name
     if password is not None:

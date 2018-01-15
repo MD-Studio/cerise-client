@@ -63,6 +63,33 @@ def test_add_missing_input_file(test_service, this_dir):
     with pytest.raises(ce.FileNotFound):
         job.add_input_file('input_file', os.path.join(this_dir, 'does_not_exist'))
 
+def test_add_input_file_array(test_service, this_dir):
+    job = test_service.create_job('test_add_input_file_array')
+    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
+    job.add_input_file('input_file', [
+        os.path.join(this_dir, 'test_job.py'),
+        os.path.join(this_dir, 'test_workflow.cwl')
+        ])
+
+    assert 'input_file' in job._input_desc
+    assert isinstance(job._input_desc['input_file'], list)
+    assert len(job._input_desc['input_file']) == 2
+
+    first_file = job._input_desc['input_file'][0]
+    assert 'class' in first_file
+    assert 'location' in first_file
+    assert 'basename' in first_file
+    assert first_file['basename'] == 'test_job.py'
+    r = requests.get('http://localhost:29593/files/input/test_add_input_file_array/test_job.py')
+    assert r.status_code == 200
+
+    second_file = job._input_desc['input_file'][1]
+    assert 'class' in second_file
+    assert 'location' in second_file
+    assert 'basename' in second_file
+    assert second_file['basename'] == 'test_workflow.cwl'
+    r = requests.get('http://localhost:29593/files/input/test_add_input_file_array/test_workflow.cwl')
+    assert r.status_code == 200
 
 # TODO: check incorrect type and non-existent input, when implemented
 

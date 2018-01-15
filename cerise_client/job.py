@@ -97,30 +97,46 @@ class Job:
         file added using this function or add_secondary_file(), or
         that of the workflow itself.
 
-        If this function is called repeatedly with the same input
-        name, the last file will be used.
+        The file_path argument may be an array of strings, in which
+        case an array of files will be passed as the value of this
+        workflow input.
 
-        Note that this function will upload the input file to the
+        If this function is called repeatedly with the same input
+        name, the last file(s) will be used.
+
+        Note that this function will upload the input file(s) to the
         service for this job. If the file is large and/or the
         connection slow, then this will take a while.
 
         Args:
             input_name (str): The name of a workflow input.
-            file_path (str): The path to the input file to use.
+            file_path (Union[str, str[]]): The path to the input file \
+                    or files to use.
 
         Raises:
             UnknownInput: The input name does not match any in this
                 workflow, or the workflow was not yet set.
-            FileNotFound: The file to be used was not found.
+            FileNotFound: A file to be used was not found.
         """
         # TODO: check against inputs
-        remote_url = self._service._upload_file(self.name, file_path)
+        if not isinstance(file_path, list):
+            file_paths = [file_path]
+        else:
+            file_paths = file_path
 
-        self._input_desc[input_name] = {
+        input_descs = []
+        for path in file_paths:
+            remote_url = self._service._upload_file(self.name, path)
+            input_descs.append({
                 "class": "File",
                 "location": remote_url,
-                "basename": os.path.basename(file_path)
-                }
+                "basename": os.path.basename(path)
+                })
+
+        if isinstance(file_path, list):
+            self._input_desc[input_name] = input_descs
+        else:
+            self._input_desc[input_name] = input_descs[0]
 
     def add_secondary_file(self, input_name, file_path):
         """

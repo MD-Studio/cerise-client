@@ -89,6 +89,12 @@ def test_create_managed_service_port_occupied(test_container):
                 'mdstudio/cerise:develop')
     clean_up_service('cerise_client_test_service2')
 
+def test_create_two_services(test_container):
+    srv = cs.create_managed_service('cerise_client_test_service2', 29594,
+            'mdstudio/cerise:develop')
+    assert isinstance(srv, cs.Service)
+    cs.destroy_managed_service(srv)
+
 def test_create_managed_service_object():
     srv = cs.Service('cerise_client_test_service', 29593)
     assert srv._name == 'cerise_client_test_service'

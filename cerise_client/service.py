@@ -36,11 +36,6 @@ def create_managed_service(srv_name, port, srv_type, user_name=None, password=No
         PortNotAvailable: The requested port is occupied.
     """
     dc = docker.from_env()
-    try:
-        _ = dc.containers.get(srv_name)
-        raise errors.ServiceAlreadyExists()
-    except docker.errors.NotFound:
-        pass
 
     environment = {}
     environment['CERISE_STORE_LOCATION_CLIENT'] = 'http://localhost:{}/files'.format(port)
@@ -66,6 +61,8 @@ def create_managed_service(srv_name, port, srv_type, user_name=None, password=No
             raise errors.PortNotAvailable(e)
         if 'port is already allocated' in e.explanation:
             raise errors.PortNotAvailable(e)
+        if 'Conflict. The container name' in e.explanation:
+            raise errors.ServiceAlreadyExists()
         raise
 
     time.sleep(1)
@@ -157,9 +154,10 @@ def require_managed_service(srv_name, port, srv_type, user_name=None, password=N
     Raises:
         PortNotAvailable: The requested port is occupied.
     """
-    if managed_service_exists(srv_name):
+    try:
+        return create_managed_service(srv_name, port, srv_type, user_name, password)
+    except errors.ServiceAlreadyExists:
         return get_managed_service(srv_name, port)
-    return create_managed_service(srv_name, port, srv_type, user_name, password)
 
 
 # Starting and stopping managed services

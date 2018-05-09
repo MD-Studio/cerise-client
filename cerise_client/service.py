@@ -298,10 +298,10 @@ class Service:
         r = requests.delete(self._jobs + '/' + job.id)
 
         if r.status_code == 404:
-            raise errors.JobNotFound("Either the input directory or the job could not be found.")
+            raise errors.JobNotFound("The job could not be found.")
 
         if r.status_code != 204:
-            raise errors.CommunicationError(r, r2)
+            raise errors.CommunicationError(r)
 
 
     def get_job_by_id(self, job_id):

@@ -29,11 +29,17 @@ def test_image(request):
 def test_service(request, test_image):
     from .clean_up import clean_up_service
     clean_up_service('cerise_client_test_service')
-    srv = cs.create_managed_service('cerise_client_test_service', 29593,
-            test_image)
 
+    docker_client = docker.from_env()
+
+    env = {'CERISE_STORE_LOCATION_CLIENT': 'http://localhost:29593/files'}
+    docker_client.containers.run(
+            test_image, name='cerise_client_test_service',
+            ports={'29593/tcp': ('127.0.0.1', 29593) },
+            environment=env, detach=True)
+    time.sleep(1)
+    srv = cs.Service('cerise_client_test_service', 29593)
     yield srv
-
     clean_up_service('cerise_client_test_service')
 
 @pytest.fixture()

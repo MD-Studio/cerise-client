@@ -38,7 +38,7 @@ def test_service(request, test_image):
             ports={'29593/tcp': ('127.0.0.1', 29593) },
             environment=env, detach=True)
     time.sleep(1)
-    srv = cs.Service('cerise_client_test_service', 29593)
+    srv = cs.Service('http://localhost', 29593)
     yield srv
     clean_up_service('cerise_client_test_service')
 

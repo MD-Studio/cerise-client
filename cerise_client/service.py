@@ -12,25 +12,24 @@ import time
 
 
 class Service:
-    def __init__(self, name, port):
+    def __init__(self, host='localhost', port=29593):
         """
-        Create a new Service object.
+        Create a new Service object representing an actual service.
 
-        Note that this does not actually create the Docker container;
-        use create_service(), get_service() or service_from_dict() to
-        obtain a Service object with an actual corresponding service.
+        Note that this does not connect to the service, that is done
+        as needed when the methods are called. So it will not raise
+        even if the given service does not exist or you have no
+        network connection.
 
         Args:
-            name (str): The name for the service (and its corresponding
-                Docker container).
+            host (str): The hostname of the service we are connecting
+                to. May be prepended by 'http://' or 'https://', with
+                https the default if a bare hostname is given.
             port (int): The port number on which the service runs.
         """
-        self._name = name
-        """str: The name of this service, and its Docker container."""
-        self._port = port
-        """int: The port number on localhost that the service listens on."""
-
-        self._srv_loc = 'http://localhost:' + str(self._port)
+        if not host.startswith('http://') and not host.startswith('https://'):
+            host = 'https://{}'.format(host)
+        self._srv_loc = '{}:{}'.format(host, port)
         self._filestore = self._srv_loc + '/files'
         self._jobs = self._srv_loc + '/jobs'
 

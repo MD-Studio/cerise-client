@@ -9,12 +9,12 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 # clean up any mess left over from previous failed tests
-from .clean_up import clean_up
+from cerise_client.test.clean_up import clean_up
 clean_up()
 
 import cerise_client.output_file as cf
 
-from .fixtures import test_image, test_service
+from cerise_client.test.fixtures import test_image, test_service
 
 @pytest.fixture()
 def this_dir(request):

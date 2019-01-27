@@ -1,5 +1,5 @@
-from . import errors
-from .job import Job
+from cerise_client import errors
+from cerise_client.job import Job
 
 import docker
 

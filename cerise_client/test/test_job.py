@@ -13,8 +13,8 @@ clean_up()
 import cerise_client.job as cj
 import cerise_client.errors as ce
 
-from .fixtures import test_image, test_service, this_dir
-from .fixtures import create_test_job
+from cerise_client.test.fixtures import test_image, test_service, this_dir
+from cerise_client.test.fixtures import create_test_job
 
 
 def test_create_job_object(test_service):

@@ -10,16 +10,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 print(sys.path)
 
 # clean up any mess left over from previous failed tests
-from .clean_up import clean_up
+from cerise_client.test.clean_up import clean_up
 clean_up()
 
 import cerise_client.service as cs
 import cerise_client.errors as ce
 import cerise_client.job as cj
-from .clean_up import clean_up_service
+from cerise_client.test.clean_up import clean_up_service
 
-from .fixtures import docker_client, test_image, test_service, this_dir
-from .fixtures import create_test_job
+from cerise_client.test.fixtures import docker_client, test_image, test_service, this_dir
+from cerise_client.test.fixtures import create_test_job
 
 @pytest.fixture()
 def test_container(request, test_image, docker_client):

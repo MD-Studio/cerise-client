@@ -1,5 +1,5 @@
-from .output_file import OutputFile
-from . import errors
+from cerise_client.output_file import OutputFile
+from cerise_client import errors
 
 import os
 

@@ -24,24 +24,53 @@ def test_set_workflow(test_service, this_dir):
     job = test_service.create_job('test_set_workflow')
     workflow_path = os.path.join(this_dir, 'test_workflow.cwl')
     job.set_workflow(workflow_path)
-    # check that it's on the service?
+
     assert job._workflow_url == 'http://localhost:29593/files/input/test_set_workflow/test_workflow.cwl'
     r = requests.get('http://localhost:29593/files/input/test_set_workflow/test_workflow.cwl')
     assert r.status_code == 200
 
-def test_set_missing_workflow(test_service, this_dir):
-    job = test_service.create_job('test_set_missing_workflow')
-    workflow_path = os.path.join(this_dir, 'does_not_exist')
-    with pytest.raises(ce.FileNotFound):
-        job.set_workflow(workflow_path)
+    with open (workflow_path, 'r') as f:
+        assert r.text == f.read()
+
+
+def test_set_workflow2(test_service, this_dir):
+    job = test_service.create_job('test_set_workflow2')
+    workflow_path = os.path.join(this_dir, 'test_workflow.cwl')
+    with open(workflow_path, 'rb') as f:
+        job.set_workflow(f)
+    assert job._workflow_url == 'http://localhost:29593/files/input/test_set_workflow2/workflow.cwl'
+    r = requests.get('http://localhost:29593/files/input/test_set_workflow2/workflow.cwl')
+    assert r.status_code == 200
+    with open(workflow_path, 'r') as f:
+        assert r.text == f.read()
+
+
+def test_set_workflow3(test_service, this_dir):
+    job = test_service.create_job('test_set_workflow3')
+    workflow_path = os.path.join(this_dir, 'test_workflow.cwl')
+    with open(workflow_path, 'rb') as f:
+        workflow = f.read()
+    assert(isinstance(workflow, bytes))
+
+    job.set_workflow(workflow)
+    assert job._workflow_url == 'http://localhost:29593/files/input/test_set_workflow3/workflow.cwl'
+    r = requests.get('http://localhost:29593/files/input/test_set_workflow3/workflow.cwl')
+    assert r.status_code == 200
+    assert r.content == workflow
+
 
 def test_set_workflow_repeatedly(test_service, this_dir):
     job = test_service.create_job('test_set_workflow_repeatedly')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow.cwl'))
-    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
-    assert job._workflow_url == 'http://localhost:29593/files/input/test_set_workflow_repeatedly/test_workflow2.cwl'
-    r = requests.get('http://localhost:29593/files/input/test_set_workflow_repeatedly/test_workflow2.cwl')
+    with open(os.path.join(this_dir, 'test_workflow.cwl')) as f:
+        job.set_workflow(f)
+    with open(os.path.join(this_dir, 'test_workflow2.cwl')) as f:
+        job.set_workflow(f)
+    assert job._workflow_url == 'http://localhost:29593/files/input/test_set_workflow_repeatedly/workflow.cwl'
+    r = requests.get('http://localhost:29593/files/input/test_set_workflow_repeatedly/workflow.cwl')
     assert r.status_code == 200
+    with open(os.path.join(this_dir, 'test_workflow2.cwl'), 'rb') as f:
+        ref_content = f.read()
+    assert r.content == ref_content
 
 def test_add_input_file(test_service, this_dir):
     job = test_service.create_job('test_add_input_file')
@@ -56,6 +85,40 @@ def test_add_input_file(test_service, this_dir):
 
     r = requests.get('http://localhost:29593/files/input/test_add_input_file/test_job.py')
     assert r.status_code == 200
+
+
+def test_add_input_file2(test_service, this_dir):
+    job = test_service.create_job('test_add_input_file2')
+    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
+    with open(os.path.join(this_dir, 'test_job.py'), 'rb') as f:
+        job.add_input_file('input_file', ('test_job.py', f))
+
+    assert 'input_file' in job._input_desc
+    assert 'class' in job._input_desc['input_file']
+    assert 'location' in job._input_desc['input_file']
+    assert 'basename' in job._input_desc['input_file']
+    assert job._input_desc['input_file']['basename'] == 'test_job.py'
+
+    r = requests.get('http://localhost:29593/files/input/test_add_input_file/test_job.py')
+    assert r.status_code == 200
+
+
+def test_add_input_file3(test_service, this_dir):
+    job = test_service.create_job('test_add_input_file3')
+    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
+    with open(os.path.join(this_dir, 'test_job.py'), 'rb') as f:
+        content = f.read()
+    job.add_input_file('input_file', ('test_job.py', content))
+
+    assert 'input_file' in job._input_desc
+    assert 'class' in job._input_desc['input_file']
+    assert 'location' in job._input_desc['input_file']
+    assert 'basename' in job._input_desc['input_file']
+    assert job._input_desc['input_file']['basename'] == 'test_job.py'
+
+    r = requests.get('http://localhost:29593/files/input/test_add_input_file/test_job.py')
+    assert r.status_code == 200
+
 
 def test_add_missing_input_file(test_service, this_dir):
     job = test_service.create_job('test_add_missing_input_file')
@@ -109,6 +172,27 @@ def test_add_secondary_file(test_service, this_dir):
     assert sf[1]['class'] == 'File'
     assert sf[1]['location'] == 'http://localhost:29593/files/input/test_add_secondary_file/test_workflow3.cwl'
     assert sf[1]['basename'] == 'test_workflow3.cwl'
+
+def test_add_secondary_file2(test_service, this_dir):
+    job = test_service.create_job('test_add_secondary_file2')
+    job.set_workflow(os.path.join(this_dir, 'test_workflow.cwl'))
+    job.add_input_file('input_file', os.path.join(this_dir, 'test_job.py'))
+    with open(os.path.join(this_dir, 'test_workflow2.cwl')) as f:
+        job.add_secondary_file('input_file', ('test_workflow2.cwl', f))
+    with open(os.path.join(this_dir, 'test_workflow3.cwl'), 'rb') as f:
+        content = f.read()
+    job.add_secondary_file('input_file', ('test_workflow3.cwl', content))
+
+    assert 'secondaryFiles' in job._input_desc['input_file']
+    sf = job._input_desc['input_file']['secondaryFiles']
+    assert isinstance(sf, list)
+    assert sf[0]['class'] == 'File'
+    assert sf[0]['location'] == 'http://localhost:29593/files/input/test_add_secondary_file2/test_workflow2.cwl'
+    assert sf[0]['basename'] == 'test_workflow2.cwl'
+    assert sf[1]['class'] == 'File'
+    assert sf[1]['location'] == 'http://localhost:29593/files/input/test_add_secondary_file2/test_workflow3.cwl'
+    assert sf[1]['basename'] == 'test_workflow3.cwl'
+
 
 def test_add_orphan_secondary_file(test_service, this_dir):
     job = test_service.create_job('test_add_orphan_secondary_file')

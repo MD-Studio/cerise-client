@@ -4,6 +4,7 @@ from cerise_client.job import Job
 import docker
 
 import errno
+from io import BytesIO
 import os
 import requests
 import tarfile
@@ -171,7 +172,7 @@ class Service:
         if r.status_code == 405:
             raise errors.JobAlreadyExists()
 
-    def _upload_file(self, job_name, local_file_path):
+    def _upload_file(self, job_name, file_desc):
         """
         Upload a local file to a remote input data directory for a
         given job. Directory must have been made first using
@@ -180,27 +181,43 @@ class Service:
         If a file with the same name already exists, it is overwritten
         silently.
 
+        For the file_desc argument, the following types are legal:
+
+        str: A path to a file, whose contents and name will be used.
+        Tuple[str, FileLike]: A file name to store under, and a
+                file-like object to read content from, and a filename
+                to store under.
+        Tuple[str, bytes]: A file name to store under, and a bytes
+                object with content.
+
+        If a file-like object is passed, it will be closed after having
+        been read.
+
         Args:
             job_name (str): The name of the job to which this file
                 belongs.
-            local_file_path (str): The path to the local file to
-                upload.
+            file_desc: The file's content and name, see above.
 
         Returns:
             str: The remote URL where the file was stored.
-
-        Raises:
-            FileNotFound: The local file could not be opened.
         """
-        base_name = os.path.basename(local_file_path)
-        remote_url = self._input_dir(job_name) + '/' + base_name
+        if isinstance(file_desc, str):
+            file_name = os.path.basename(file_desc)
+            try:
+                content = open(file_desc, 'rb')
+            except IOError as e:
+                if e.errno == errno.ENOENT:
+                    raise errors.FileNotFound()
+        else:
+            file_name, content = file_desc
+            if isinstance(content, bytes):
+                content = BytesIO(content)
 
         try:
-            with open(local_file_path, 'rb') as local_file:
-                requests.put(remote_url, data=local_file.read())
-        except IOError as e:
-            if e.errno == errno.ENOENT:
-                raise errors.FileNotFound()
+            remote_url = self._input_dir(job_name) + '/' + file_name
+            requests.put(remote_url, data=content)
+        finally:
+            content.close()
 
         return remote_url
 

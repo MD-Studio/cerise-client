@@ -3,6 +3,7 @@ from cerise_client import errors
 
 import os
 
+
 class Job:
     def __init__(self, service, name, job_id=None, inputs=None,
             workflow=None, input_desc=None):
@@ -61,33 +62,42 @@ class Job:
             return self._service._get_job_log(self.id)
         return None
 
-    def set_workflow(self, file_path):
+    def set_workflow(self, workflow):
         """
         Sets the workflow file.
 
         Only one workflow file may be submitted; if this function is
         called repeatedly, the last workflow file is used.
 
-        Args:
-            file_path (str): The path to the CWL file defining the
-                workflow to be run. The file's name must not equal
-                that of any file added using add_input_file().
+        Valid types for workflow are:
 
-        Raises:
-            FileNotFound: The workflow file was not found at the
-                given path.
+        str: A path to a local CWL file containing the workflow.
+        bytes: A bytes object containing a CWL workflow definition.
+        File-like object: A stream to read the workflow content from.
+
+        If you have the workflow content in string format, use
+        set_workflow(wf.encode('utf-8')) (i.e. convert to bytes first).
+
+        Args:
+            workflow: Either a str containing the path to a file to
+                    use, or a File-like object to read content from,
+                    or a bytes object containing the workflow contents.
         """
         # scan workflow for inputs and store them in the object
         # list of (name, type) tuples? or {name: type}?
         # dict is better, need to search by name when adding
 
+        # get file object from input
+        if not isinstance(workflow, str):
+            workflow = 'workflow.cwl', workflow
+
         # upload the workflow
-        self._workflow_url = self._service._upload_file(self.name, file_path)
+        self._workflow_url = self._service._upload_file(self.name, workflow)
 
         # maybe make subdirs for input files and workflow, to allow
         # same names?
 
-    def add_input_file(self, input_name, file_path):
+    def add_input_file(self, input_name, file_desc):
         """
         Adds an input file for the given workflow input.
 
@@ -95,11 +105,21 @@ class Job:
         The input name must correspond to an input defined in the
         workflow. The file's name must not equal that of any other
         file added using this function or add_secondary_file(), or
-        that of the workflow itself.
+        `workflow.cwl`.
 
-        The file_path argument may be an array of strings, in which
-        case an array of files will be passed as the value of this
-        workflow input.
+        The file_desc argument may be a string, a tuple of a string and
+        a file-like object, a tuple of a string and a bytes object,
+        or a list containing any of the above.
+
+        If file_desc is a string, it is assumed to contain a path, and
+        the corresponding file is uploaded and added as an input file
+        with its original name. If file_desc is a tuple of a string and
+        a file-like object, the string is used as the file name, and
+        the content is read from the object. If file_desc is a tuple
+        of a string and a bytes object, the bytes object is used as the
+        content and the string as the name. If a list is supplied, each
+        list item is processed as above, and the input's value is set
+        to a corresponding array of Files.
 
         If this function is called repeatedly with the same input
         name, the last file(s) will be used.
@@ -110,8 +130,7 @@ class Job:
 
         Args:
             input_name (str): The name of a workflow input.
-            file_path (Union[str, str[]]): The path to the input file \
-                    or files to use.
+            file_desc: A description of the file(s) to add, see above.
 
         Raises:
             UnknownInput: The input name does not match any in this
@@ -119,26 +138,30 @@ class Job:
             FileNotFound: A file to be used was not found.
         """
         # TODO: check against inputs
-        if not isinstance(file_path, list):
-            file_paths = [file_path]
+        if not isinstance(file_desc, list):
+            file_descs = [file_desc]
         else:
-            file_paths = file_path
+            file_descs = file_desc
 
         input_descs = []
-        for path in file_paths:
-            remote_url = self._service._upload_file(self.name, path)
+        for desc in file_descs:
+            remote_url = self._service._upload_file(self.name, desc)
+            if isinstance(desc, str):
+                basename = os.path.basename(desc)
+            elif isinstance(desc, tuple):
+                basename = desc[0]
             input_descs.append({
                 "class": "File",
                 "location": remote_url,
-                "basename": os.path.basename(path)
+                "basename": basename
                 })
 
-        if isinstance(file_path, list):
+        if isinstance(file_desc, list):
             self._input_desc[input_name] = input_descs
         else:
             self._input_desc[input_name] = input_descs[0]
 
-    def add_secondary_file(self, input_name, file_path):
+    def add_secondary_file(self, input_name, file_desc):
         """
         Adds a secondary file for the given workflow input.
 
@@ -149,13 +172,25 @@ class Job:
         file added using this function or add_secondary_file(), or
         that of the workflow itself.
 
+        The file_desc argument may be a string, a tuple of a string and
+        a file-like object, a tuple of a string and a bytes object,
+        or a list containing any of the above.
+
+        If file_desc is a string, it is assumed to contain a path, and
+        the corresponding file is uploaded and added as a secondary file
+        with its original name. If file_desc is a tuple of a string and
+        a file-like object, the string is used as the file name, and
+        the content is read from the object. If file_desc is a tuple
+        of a string and a bytes object, the bytes object is used as the
+        content and the string as the name.
+
         Note that this function will upload the input file to the
         service for this job. If the file is large and/or the
         connection slow, then this will take a while.
 
         Args:
             input_name (str): The name of a workflow input.
-            file_path (str): The path to the input file to use.
+            file_desc: The file to set, see above.
 
         Raises:
             UnknownInput: The input name does not match any in this
@@ -167,15 +202,20 @@ class Job:
         if not input_name in self._input_desc:
             raise errors.NoPrimaryFile('Primary file not set yet')
 
-        remote_url = self._service._upload_file(self.name, file_path)
+        remote_url = self._service._upload_file(self.name, file_desc)
+
+        if isinstance(file_desc, str):
+            basename = os.path.basename(file_desc)
+        elif isinstance(file_desc, tuple):
+            basename = file_desc[0]
 
         if not 'secondaryFiles' in self._input_desc[input_name]:
-            self._input_desc[input_name]['secondaryFiles'] = []
+            self._input_desc[input_name]['secondaryFiles'] = list()
 
         self._input_desc[input_name]['secondaryFiles'].append({
                 "class": "File",
                 "location": remote_url,
-                "basename": os.path.basename(file_path)
+                "basename": basename
                 })
 
     def set_input(self, input_name, value):

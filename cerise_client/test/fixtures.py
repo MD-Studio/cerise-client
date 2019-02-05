@@ -10,7 +10,7 @@ import cerise_client.service as cs
 def docker_client(request):
     return docker.from_env()
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def test_image(request):
     """Get a plain cerise image for testing.
 
@@ -25,7 +25,7 @@ def test_image(request):
         pass
     return 'mdstudio/cerise:develop'
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def test_service(request, test_image):
     from .clean_up import clean_up_service
     clean_up_service('cerise_client_test_service')

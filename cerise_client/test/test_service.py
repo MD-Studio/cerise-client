@@ -103,6 +103,10 @@ def test_nonexistent_job_by_id(test_service):
 
 def test_list_jobs(test_service, this_dir):
     job_list = test_service.list_jobs()
+    for job in job_list:
+        test_service.destroy_job(job)
+    time.sleep(3)
+    job_list = test_service.list_jobs()
     assert len(job_list) == 0
 
     job = test_service.create_job('test_list_jobs1')

@@ -54,9 +54,9 @@ def test_set_workflow3(test_service, this_dir):
 
 def test_set_workflow_repeatedly(test_service, this_dir):
     job = test_service.create_job('test_set_workflow_repeatedly')
-    with (this_dir / 'test_workflow.cwl').open() as f:
+    with (this_dir / 'test_workflow.cwl').open('rb') as f:
         job.set_workflow(f)
-    with (this_dir / 'test_workflow2.cwl').open() as f:
+    with (this_dir / 'test_workflow2.cwl').open('rb') as f:
         job.set_workflow(f)
     assert job._workflow_url == 'http://localhost:29593/files/input/test_set_workflow_repeatedly/workflow.cwl'
     r = requests.get('http://localhost:29593/files/input/test_set_workflow_repeatedly/workflow.cwl')
@@ -170,7 +170,7 @@ def test_add_secondary_file2(test_service, this_dir):
     job = test_service.create_job('test_add_secondary_file2')
     job.set_workflow(str(this_dir / 'test_workflow.cwl'))
     job.add_input_file('input_file', str(this_dir / 'test_job.py'))
-    with (this_dir / 'test_workflow2.cwl').open() as f:
+    with (this_dir / 'test_workflow2.cwl').open('rb') as f:
         job.add_secondary_file('input_file', ('test_workflow2.cwl', f))
     with (this_dir / 'test_workflow3.cwl').open('rb') as f:
         content = f.read()

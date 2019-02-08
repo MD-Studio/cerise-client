@@ -1,20 +1,10 @@
-from __future__ import absolute_import, division, print_function
-from builtins import bytes
-
 import os
 import pytest
 import requests
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-
-# clean up any mess left over from previous failed tests
-from cerise_client.test.clean_up import clean_up
-clean_up()
-
 import cerise_client.output_file as cf
 
-from cerise_client.test.fixtures import test_image, test_service
 
 @pytest.fixture()
 def this_dir(request):

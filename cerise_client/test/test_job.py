@@ -4,17 +4,10 @@ import requests
 import sys
 import time
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-
-# clean up any mess left over from previous failed tests
-from .clean_up import clean_up
-clean_up()
-
 import cerise_client.job as cj
 import cerise_client.errors as ce
 
-from cerise_client.test.fixtures import test_image, test_service, this_dir
-from cerise_client.test.fixtures import create_test_job
+from cerise_client.test.conftest import create_test_job
 
 
 def test_create_job_object(test_service):

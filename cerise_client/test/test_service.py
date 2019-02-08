@@ -6,45 +6,11 @@ import requests
 import sys
 import time
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-print(sys.path)
-
-# clean up any mess left over from previous failed tests
-from cerise_client.test.clean_up import clean_up
-clean_up()
-
 import cerise_client.service as cs
 import cerise_client.errors as ce
 import cerise_client.job as cj
-from cerise_client.test.clean_up import clean_up_service
+from cerise_client.test.conftest import create_test_job
 
-from cerise_client.test.fixtures import docker_client, test_image, test_service, this_dir
-from cerise_client.test.fixtures import create_test_job
-
-@pytest.fixture()
-def test_container(request, test_image, docker_client):
-    try:
-        container = docker_client.containers.get('cerise_client_test_service')
-    except docker.errors.NotFound:
-        image = docker_client.images.get(test_image)
-
-        container = docker_client.containers.run(
-                image,
-                name='cerise_client_test_service',
-                ports={'29593/tcp': ('127.0.0.1', 29593) },
-                detach=True)
-
-    yield container
-
-    container.stop()
-    container.remove()
-
-@pytest.fixture()
-def test_service_dict(request):
-    return {
-            'name': 'cerise_client_test_service',
-            'port': 29593
-            }
 
 def test_create_job(test_service):
     job = test_service.create_job('test_create_job')

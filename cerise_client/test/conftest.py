@@ -4,6 +4,7 @@ import pytest
 import requests
 import time
 
+import cerise_client.output_file as cf
 import cerise_client.service as cs
 
 
@@ -26,7 +27,9 @@ def clean_up():
 
 @pytest.fixture(scope="session")
 def docker_client(request):
-    return docker.from_env()
+    client = docker.from_env()
+    yield client
+    client.close()
 
 
 @pytest.fixture(scope="session")
@@ -105,3 +108,16 @@ def create_test_job(test_service, this_dir, name):
     counts = job.outputs['counts']
     assert counts.text != ''
     return job
+
+
+@pytest.fixture()
+def test_file(request, test_service, this_dir):
+    requests.put(
+            'http://localhost:29593/files/input/test_workflow.cwl',
+            data=(this_dir / 'test_workflow.cwl').open('rb'))
+    return 'http://localhost:29593/files/input/test_workflow.cwl'
+
+@pytest.fixture()
+def test_output_file(request, test_file):
+    return cf.OutputFile(test_file)
+

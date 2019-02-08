@@ -1,5 +1,5 @@
 coverage>=4.0.3
 docker<4
-pytest>=3.0
+pytest>=3.6
 pytest-cov>=2.5
 codacy-coverage

@@ -1,6 +1,7 @@
-from . import errors
+from cerise_client import MissingOutput
 
 import requests
+
 
 class OutputFile:
     def __init__(self, uri):
@@ -21,7 +22,7 @@ class OutputFile:
             file_path (str): The path to save the file to.
         Raises:
             IOError: There was a problem saving the file.
-            errors.MissingOutput: The output doesn't exist. Maybe the
+            MissingOutput: The output doesn't exist. Maybe the
                 job was deleted?
         """
         with open(file_path, 'wb') as f:
@@ -38,7 +39,7 @@ class OutputFile:
         Returns:
             str: The contents of the file as text.
         Raises:
-            errors.MissingOutput: The output doesn't exist. Maybe the
+            MissingOutput: The output doesn't exist. Maybe the
                 job was deleted?
         """
         return self._get_file().text
@@ -60,10 +61,10 @@ class OutputFile:
         Returns:
             (requests.Response): The remote file
         Raises:
-            errors.MissingOutput: The output doesn't exist. Maybe the
+            MissingOutput: The output doesn't exist. Maybe the
                 job was deleted?
         """
         r = requests.get(self._uri)
         if r.status_code == 404:
-            raise errors.MissingOutput
+            raise MissingOutput()
         return r

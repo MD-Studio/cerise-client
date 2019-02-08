@@ -4,8 +4,7 @@ import pytest
 import requests
 import time
 
-import cerise_client.output_file as cf
-import cerise_client.service as cs
+from cerise_client import OutputFile, Service
 
 
 def clean_up_service(srv_name):
@@ -55,7 +54,7 @@ def test_service(test_image, docker_client):
             ports={'29593/tcp': ('127.0.0.1', 29593) },
             environment=env, detach=True)
     time.sleep(1)
-    srv = cs.Service('http://localhost', 29593)
+    srv = Service('http://localhost', 29593)
     yield srv
     clean_up_service('cerise_client_test_service')
 
@@ -119,5 +118,5 @@ def test_file(request, test_service, this_dir):
 
 @pytest.fixture()
 def test_output_file(request, test_file):
-    return cf.OutputFile(test_file)
+    return OutputFile(test_file)
 

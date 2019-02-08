@@ -1,5 +1,5 @@
-from cerise_client import errors
-from cerise_client.job import Job
+from cerise_client import (CommunicationError, FileNotFound, InvalidJob, Job,
+                           JobAlreadyExists, JobNotFound)
 
 import docker
 
@@ -72,10 +72,10 @@ class Service:
         r = requests.delete(self._jobs + '/' + job.id)
 
         if r.status_code == 404:
-            raise errors.JobNotFound("The job could not be found.")
+            raise JobNotFound("The job could not be found.")
 
         if r.status_code != 204:
-            raise errors.CommunicationError(r)
+            raise CommunicationError(r)
 
 
     def get_job_by_id(self, job_id):
@@ -118,7 +118,7 @@ class Service:
         """
         job = [job for job in self.list_jobs() if job.name == job_name]
         if job == []:
-            raise errors.JobNotFound()
+            raise JobNotFound()
         return job[0]
 
     def list_jobs(self):
@@ -136,7 +136,7 @@ class Service:
         """
         r = requests.get(self._jobs)
         if r.status_code != 200:
-            raise errors.CommunicationError(r)
+            raise CommunicationError(r)
         jobs_json = r.json()
         return [Job(self, job['name'], job['id'], None,
                     job['workflow'], job['input'])
@@ -170,7 +170,7 @@ class Service:
         # Note: WebDAV requires the trailing /
         r = requests.request('MKCOL', self._input_dir(job_name) + '/')
         if r.status_code == 405:
-            raise errors.JobAlreadyExists()
+            raise JobAlreadyExists()
 
     def _upload_file(self, job_name, file_desc):
         """
@@ -207,7 +207,7 @@ class Service:
                 content = open(file_desc, 'rb')
             except IOError as e:
                 if e.errno == errno.ENOENT:
-                    raise errors.FileNotFound()
+                    raise FileNotFound()
         else:
             file_name, content = file_desc
             if isinstance(content, bytes):
@@ -240,7 +240,7 @@ class Service:
         """
         r = requests.post(self._jobs, json=job_desc)
         if r.status_code == 400:
-            raise errors.InvalidJob()
+            raise InvalidJob()
         return r.json()['id']
 
     def _cancel_job(self, job_id):
@@ -257,7 +257,7 @@ class Service:
         """
         r = requests.post(self._jobs + '/' + job_id + '/cancel')
         if r.status_code == 404:
-            raise errors.JobNotFound()
+            raise JobNotFound()
         if r.status_code != 200:
             raise CommunicationError()
 
@@ -297,9 +297,9 @@ class Service:
         """
         r = requests.get(self._jobs + '/' + job_id + '/log')
         if r.status_code == 404:
-            raise errors.JobNotFound()
+            raise JobNotFound()
         if r.status_code != 200:
-            raise errors.CommunicationError(r)
+            raise CommunicationError(r)
         return r.text
 
     def _get_outputs(self, job_id):
@@ -344,9 +344,9 @@ class Service:
         for file_path in file_list:
             r = requests.delete(self._srv_loc + file_path)
             if r.status_code == 404:
-                raise errors.JobNotFound(r)
+                raise JobNotFound(r)
             if r.status_code != 204:
-                raise errors.CommunicationError(r)
+                raise CommunicationError(r)
 
     def _get_job_from_service(self, job_id):
         """
@@ -367,7 +367,7 @@ class Service:
         """
         r = requests.get(self._jobs + '/' + job_id)
         if r.status_code == 404:
-            raise errors.JobNotFound()
+            raise JobNotFound()
         if r.status_code != 200:
             raise error.CommunicationError(r)
         return r.json()

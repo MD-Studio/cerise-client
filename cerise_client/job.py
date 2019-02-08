@@ -1,5 +1,4 @@
-from cerise_client.output_file import OutputFile
-from cerise_client import errors
+from cerise_client import JobAlreadyExists, NoPrimaryFile, OutputFile
 
 import os
 
@@ -200,7 +199,7 @@ class Job:
                 add_input_file().
         """
         if not input_name in self._input_desc:
-            raise errors.NoPrimaryFile('Primary file not set yet')
+            raise NoPrimaryFile('Primary file not set yet')
 
         remote_url = self._service._upload_file(self.name, file_desc)
 
@@ -244,7 +243,7 @@ class Job:
             str: The id given to this job by the service.
         """
         if self.id is not None:
-            raise errors.JobAlreadyExists()
+            raise JobAlreadyExists()
 
         job_desc = {
                 'name': self.name,

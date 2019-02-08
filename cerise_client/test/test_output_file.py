@@ -3,11 +3,11 @@ import pytest
 import requests
 import sys
 
-import cerise_client.output_file as cf
+from cerise_client import OutputFile
 
 
 def test_create_output_file_object(test_file):
-    output_file = cf.OutputFile(test_file)
+    output_file = OutputFile(test_file)
     assert output_file._uri == test_file
 
 def test_save_output_file(test_output_file, tmpdir, this_dir):

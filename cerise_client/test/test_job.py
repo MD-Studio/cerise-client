@@ -4,14 +4,14 @@ import requests
 import sys
 import time
 
-import cerise_client.job as cj
-import cerise_client.errors as ce
+from cerise_client import (InvalidJob, Job, JobAlreadyExists, JobNotFound,
+                           FileNotFound, NoPrimaryFile)
 
 from cerise_client.test.conftest import create_test_job
 
 
 def test_create_job_object(test_service):
-    _ = cj.Job(test_service, 'test_job')
+    _ = Job(test_service, 'test_job')
 
 def test_set_workflow(test_service, this_dir):
     job = test_service.create_job('test_set_workflow')
@@ -116,7 +116,7 @@ def test_add_input_file3(test_service, this_dir):
 def test_add_missing_input_file(test_service, this_dir):
     job = test_service.create_job('test_add_missing_input_file')
     job.set_workflow(str(this_dir / 'test_workflow2.cwl'))
-    with pytest.raises(ce.FileNotFound):
+    with pytest.raises(FileNotFound):
         job.add_input_file('input_file', str(this_dir / 'does_not_exist'))
 
 def test_add_input_file_array(test_service, this_dir):
@@ -190,14 +190,14 @@ def test_add_secondary_file2(test_service, this_dir):
 def test_add_orphan_secondary_file(test_service, this_dir):
     job = test_service.create_job('test_add_orphan_secondary_file')
     job.set_workflow(str(this_dir / 'test_workflow.cwl'))
-    with pytest.raises(ce.NoPrimaryFile):
+    with pytest.raises(NoPrimaryFile):
         job.add_secondary_file('input_file', str(this_dir / 'test_workflow2.cwl'))
 
 def test_add_missing_secondary_file(test_service, this_dir):
     job = test_service.create_job('test_add_missing_secondary_file')
     job.set_workflow(str(this_dir / 'test_workflow.cwl'))
     job.add_input_file('input_file', str(this_dir / 'test_job.py'))
-    with pytest.raises(ce.FileNotFound):
+    with pytest.raises(FileNotFound):
         job.add_secondary_file('input_file', str(this_dir / 'does_not_exist'))
 
 def test_set_input(test_service, this_dir):
@@ -216,7 +216,7 @@ def test_run_job(test_service, this_dir):
 
 def test_run_invalid_job(test_service):
     job = test_service.create_job('test_run_invalid_job')
-    with pytest.raises(ce.InvalidJob):
+    with pytest.raises(InvalidJob):
         _ = job.run()
 
 def test_no_rerun_job(test_service, this_dir):
@@ -224,7 +224,7 @@ def test_no_rerun_job(test_service, this_dir):
     job.set_workflow(str(this_dir / 'test_workflow3.cwl'))
     job.set_input('time', 2)
     job_id = job.run()
-    with pytest.raises(ce.JobAlreadyExists):
+    with pytest.raises(JobAlreadyExists):
         _ = job.run()
 
 def test_job_is_running(test_service, this_dir):
@@ -252,7 +252,7 @@ def test_job_state(test_service, this_dir):
 def test_job_state_error(test_service):
     job = test_service.create_job('test_job_state_error')
     job.id = 'nonexistent'
-    with pytest.raises(ce.JobNotFound):
+    with pytest.raises(JobNotFound):
         _ = job.state
 
 def test_cancel_job(test_service, this_dir):
@@ -284,5 +284,5 @@ def test_job_log(test_service, this_dir):
 #def test_nonexistent_job_log(test_service, this_dir):
 #    job = create_test_job(test_service, this_dir, 'test_nonexistent_job_log')
 #    job.id = 'nonexistent'
-#    with pytest.raises(ce.JobNotFound):
+#    with pytest.raises(JobNotFound):
 #        _ = job.log

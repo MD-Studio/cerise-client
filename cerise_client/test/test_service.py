@@ -6,9 +6,8 @@ import requests
 import sys
 import time
 
-import cerise_client.service as cs
-import cerise_client.errors as ce
-import cerise_client.job as cj
+from cerise_client import Job, JobAlreadyExists, JobNotFound, MissingOutput
+
 from cerise_client.test.conftest import create_test_job
 
 
@@ -18,7 +17,7 @@ def test_create_job(test_service):
 
 def test_create_job_twice(test_service):
     test_service.create_job('test_create_job_twice')
-    with pytest.raises(ce.JobAlreadyExists):
+    with pytest.raises(JobAlreadyExists):
         test_service.create_job('test_create_job_twice')
 
 def test_destroy_job(test_service, this_dir):
@@ -33,16 +32,16 @@ def test_destroy_job(test_service, this_dir):
 
     # check that outputs are gone, after the back-end has had time to respond
     time.sleep(2)
-    with pytest.raises(ce.MissingOutput):
+    with pytest.raises(MissingOutput):
         _ = counts.text
 
     # check that the job is gone
-    with pytest.raises(ce.JobNotFound):
+    with pytest.raises(JobNotFound):
         _ = job.state
 
 def test_destroy_nonexistant_job(test_service):
-    job = cj.Job(test_service, 'test_destroy_nonexistant_job', 'nonexistant_id')
-    with pytest.raises(ce.JobNotFound):
+    job = Job(test_service, 'test_destroy_nonexistant_job', 'nonexistant_id')
+    with pytest.raises(JobNotFound):
         test_service.destroy_job(job)
 
 def test_get_job_by_id(test_service, this_dir):
@@ -64,7 +63,7 @@ def test_get_job_by_id(test_service, this_dir):
     assert job._outputs == job3._outputs
 
 def test_nonexistent_job_by_id(test_service):
-    with pytest.raises(ce.JobNotFound):
+    with pytest.raises(JobNotFound):
         test_service.get_job_by_id('surely_this_id_does_not_exist')
 
 def test_list_jobs(test_service, this_dir):
@@ -111,9 +110,9 @@ def test_get_job_by_name(test_service, this_dir):
     job2 = test_service.get_job_by_name('test_find_job_by_name')
     assert job.id == job2.id
 
-    with pytest.raises(ce.JobNotFound):
+    with pytest.raises(JobNotFound):
         job3 = test_service.get_job_by_name('no_such_job')
 
 def test_get_missing_job_by_name(test_service):
-    with pytest.raises(ce.JobNotFound):
+    with pytest.raises(JobNotFound):
         job = test_service.get_job_by_name('does_not_exist')

@@ -1,5 +1,6 @@
 import docker
 import os
+from pathlib import Path
 import pytest
 import requests
 import time
@@ -43,8 +44,8 @@ def test_service(request, test_image):
     clean_up_service('cerise_client_test_service')
 
 @pytest.fixture()
-def this_dir(request):
-    return os.path.dirname(__file__)
+def this_dir():
+    return Path(__file__).parent
 
 def create_test_job(test_service, this_dir, name):
     job = test_service.create_job(name)
@@ -52,8 +53,8 @@ def create_test_job(test_service, this_dir, name):
     assert r.status_code == 200
 
     # run job to create some outputs
-    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
-    job.add_input_file('input_file', os.path.join(this_dir, 'test_workflow2.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow2.cwl'))
+    job.add_input_file('input_file', str(this_dir / 'test_workflow2.cwl'))
     job.run()
     while job.is_running():
         time.sleep(0.1)

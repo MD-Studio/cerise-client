@@ -22,33 +22,33 @@ def test_create_job_object(test_service):
 
 def test_set_workflow(test_service, this_dir):
     job = test_service.create_job('test_set_workflow')
-    workflow_path = os.path.join(this_dir, 'test_workflow.cwl')
-    job.set_workflow(workflow_path)
+    workflow_path = this_dir / 'test_workflow.cwl'
+    job.set_workflow(str(workflow_path))
 
     assert job._workflow_url == 'http://localhost:29593/files/input/test_set_workflow/test_workflow.cwl'
     r = requests.get('http://localhost:29593/files/input/test_set_workflow/test_workflow.cwl')
     assert r.status_code == 200
 
-    with open (workflow_path, 'r') as f:
+    with workflow_path.open('r') as f:
         assert r.text == f.read()
 
 
 def test_set_workflow2(test_service, this_dir):
     job = test_service.create_job('test_set_workflow2')
-    workflow_path = os.path.join(this_dir, 'test_workflow.cwl')
-    with open(workflow_path, 'rb') as f:
+    workflow_path = this_dir / 'test_workflow.cwl'
+    with workflow_path.open('rb') as f:
         job.set_workflow(f)
     assert job._workflow_url == 'http://localhost:29593/files/input/test_set_workflow2/workflow.cwl'
     r = requests.get('http://localhost:29593/files/input/test_set_workflow2/workflow.cwl')
     assert r.status_code == 200
-    with open(workflow_path, 'r') as f:
+    with workflow_path.open('r') as f:
         assert r.text == f.read()
 
 
 def test_set_workflow3(test_service, this_dir):
     job = test_service.create_job('test_set_workflow3')
-    workflow_path = os.path.join(this_dir, 'test_workflow.cwl')
-    with open(workflow_path, 'rb') as f:
+    workflow_path = this_dir / 'test_workflow.cwl'
+    with workflow_path.open('rb') as f:
         workflow = f.read()
     assert(isinstance(workflow, bytes))
 
@@ -61,21 +61,21 @@ def test_set_workflow3(test_service, this_dir):
 
 def test_set_workflow_repeatedly(test_service, this_dir):
     job = test_service.create_job('test_set_workflow_repeatedly')
-    with open(os.path.join(this_dir, 'test_workflow.cwl')) as f:
+    with (this_dir / 'test_workflow.cwl').open() as f:
         job.set_workflow(f)
-    with open(os.path.join(this_dir, 'test_workflow2.cwl')) as f:
+    with (this_dir / 'test_workflow2.cwl').open() as f:
         job.set_workflow(f)
     assert job._workflow_url == 'http://localhost:29593/files/input/test_set_workflow_repeatedly/workflow.cwl'
     r = requests.get('http://localhost:29593/files/input/test_set_workflow_repeatedly/workflow.cwl')
     assert r.status_code == 200
-    with open(os.path.join(this_dir, 'test_workflow2.cwl'), 'rb') as f:
+    with (this_dir / 'test_workflow2.cwl').open('rb') as f:
         ref_content = f.read()
     assert r.content == ref_content
 
 def test_add_input_file(test_service, this_dir):
     job = test_service.create_job('test_add_input_file')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
-    job.add_input_file('input_file', os.path.join(this_dir, 'test_job.py'))
+    job.set_workflow(str(this_dir / 'test_workflow2.cwl'))
+    job.add_input_file('input_file', str(this_dir / 'test_job.py'))
 
     assert 'input_file' in job._input_desc
     assert 'class' in job._input_desc['input_file']
@@ -89,8 +89,8 @@ def test_add_input_file(test_service, this_dir):
 
 def test_add_input_file2(test_service, this_dir):
     job = test_service.create_job('test_add_input_file2')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
-    with open(os.path.join(this_dir, 'test_job.py'), 'rb') as f:
+    job.set_workflow(str(this_dir / 'test_workflow2.cwl'))
+    with (this_dir / 'test_job.py').open('rb') as f:
         job.add_input_file('input_file', ('test_job.py', f))
 
     assert 'input_file' in job._input_desc
@@ -105,8 +105,8 @@ def test_add_input_file2(test_service, this_dir):
 
 def test_add_input_file3(test_service, this_dir):
     job = test_service.create_job('test_add_input_file3')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
-    with open(os.path.join(this_dir, 'test_job.py'), 'rb') as f:
+    job.set_workflow(str(this_dir / 'test_workflow2.cwl'))
+    with (this_dir / 'test_job.py').open('rb') as f:
         content = f.read()
     job.add_input_file('input_file', ('test_job.py', content))
 
@@ -122,16 +122,16 @@ def test_add_input_file3(test_service, this_dir):
 
 def test_add_missing_input_file(test_service, this_dir):
     job = test_service.create_job('test_add_missing_input_file')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow2.cwl'))
     with pytest.raises(ce.FileNotFound):
-        job.add_input_file('input_file', os.path.join(this_dir, 'does_not_exist'))
+        job.add_input_file('input_file', str(this_dir / 'does_not_exist'))
 
 def test_add_input_file_array(test_service, this_dir):
     job = test_service.create_job('test_add_input_file_array')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow2.cwl'))
     job.add_input_file('input_file', [
-        os.path.join(this_dir, 'test_job.py'),
-        os.path.join(this_dir, 'test_workflow.cwl')
+        str(this_dir / 'test_job.py'),
+        str(this_dir / 'test_workflow.cwl')
         ])
 
     assert 'input_file' in job._input_desc
@@ -158,10 +158,10 @@ def test_add_input_file_array(test_service, this_dir):
 
 def test_add_secondary_file(test_service, this_dir):
     job = test_service.create_job('test_add_secondary_file')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow.cwl'))
-    job.add_input_file('input_file', os.path.join(this_dir, 'test_job.py'))
-    job.add_secondary_file('input_file', os.path.join(this_dir, 'test_workflow2.cwl'))
-    job.add_secondary_file('input_file', os.path.join(this_dir, 'test_workflow3.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow.cwl'))
+    job.add_input_file('input_file', str(this_dir / 'test_job.py'))
+    job.add_secondary_file('input_file', str(this_dir / 'test_workflow2.cwl'))
+    job.add_secondary_file('input_file', str(this_dir / 'test_workflow3.cwl'))
 
     assert 'secondaryFiles' in job._input_desc['input_file']
     sf = job._input_desc['input_file']['secondaryFiles']
@@ -175,11 +175,11 @@ def test_add_secondary_file(test_service, this_dir):
 
 def test_add_secondary_file2(test_service, this_dir):
     job = test_service.create_job('test_add_secondary_file2')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow.cwl'))
-    job.add_input_file('input_file', os.path.join(this_dir, 'test_job.py'))
-    with open(os.path.join(this_dir, 'test_workflow2.cwl')) as f:
+    job.set_workflow(str(this_dir / 'test_workflow.cwl'))
+    job.add_input_file('input_file', str(this_dir / 'test_job.py'))
+    with (this_dir / 'test_workflow2.cwl').open() as f:
         job.add_secondary_file('input_file', ('test_workflow2.cwl', f))
-    with open(os.path.join(this_dir, 'test_workflow3.cwl'), 'rb') as f:
+    with (this_dir / 'test_workflow3.cwl').open('rb') as f:
         content = f.read()
     job.add_secondary_file('input_file', ('test_workflow3.cwl', content))
 
@@ -196,26 +196,26 @@ def test_add_secondary_file2(test_service, this_dir):
 
 def test_add_orphan_secondary_file(test_service, this_dir):
     job = test_service.create_job('test_add_orphan_secondary_file')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow.cwl'))
     with pytest.raises(ce.NoPrimaryFile):
-        job.add_secondary_file('input_file', os.path.join(this_dir, 'test_workflow2.cwl'))
+        job.add_secondary_file('input_file', str(this_dir / 'test_workflow2.cwl'))
 
 def test_add_missing_secondary_file(test_service, this_dir):
     job = test_service.create_job('test_add_missing_secondary_file')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow.cwl'))
-    job.add_input_file('input_file', os.path.join(this_dir, 'test_job.py'))
+    job.set_workflow(str(this_dir / 'test_workflow.cwl'))
+    job.add_input_file('input_file', str(this_dir / 'test_job.py'))
     with pytest.raises(ce.FileNotFound):
-        job.add_secondary_file('input_file', os.path.join(this_dir, 'does_not_exist'))
+        job.add_secondary_file('input_file', str(this_dir / 'does_not_exist'))
 
 def test_set_input(test_service, this_dir):
     job = test_service.create_job('test_set_input')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow3.cwl'))
     job.set_input('time', 10)
     assert job._input_desc['time'] == 10
 
 def test_run_job(test_service, this_dir):
     job = test_service.create_job('test_run_job')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow3.cwl'))
     job.set_input('time', 10)
     job_id = job.run()
     r = requests.get('http://localhost:29593/jobs/' + job_id)
@@ -228,7 +228,7 @@ def test_run_invalid_job(test_service):
 
 def test_no_rerun_job(test_service, this_dir):
     job = test_service.create_job('test_no_rerun_job')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow3.cwl'))
     job.set_input('time', 2)
     job_id = job.run()
     with pytest.raises(ce.JobAlreadyExists):
@@ -236,7 +236,7 @@ def test_no_rerun_job(test_service, this_dir):
 
 def test_job_is_running(test_service, this_dir):
     job = test_service.create_job('test_job_is_running')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow3.cwl'))
     job.set_input('time', 1)
     _ = job.run()
     assert job.is_running()
@@ -247,7 +247,7 @@ def test_job_is_running(test_service, this_dir):
 def test_job_state(test_service, this_dir):
     job = test_service.create_job('test_job_state')
     assert job.state is None
-    job.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow3.cwl'))
     job.set_input('time', 1)
     job_id = job.run()
     while job.state == 'Waiting':
@@ -264,7 +264,7 @@ def test_job_state_error(test_service):
 
 def test_cancel_job(test_service, this_dir):
     job = test_service.create_job('test_cancel_job')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow3.cwl'))
     job.set_input('time', 10)
     job_id = job.run()
     job.cancel()
@@ -273,8 +273,8 @@ def test_cancel_job(test_service, this_dir):
 
 def test_job_outputs(test_service, this_dir, tmpdir):
     job = test_service.create_job('test_job_outputs')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
-    job.add_input_file('input_file', os.path.join(this_dir, 'test_workflow2.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow2.cwl'))
+    job.add_input_file('input_file', str(this_dir / 'test_workflow2.cwl'))
     job.run()
     while job.is_running():
         time.sleep(0.1)

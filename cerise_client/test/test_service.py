@@ -81,8 +81,8 @@ def test_destroy_nonexistant_job(test_service):
 
 def test_get_job_by_id(test_service, this_dir):
     job = test_service.create_job('test_get_job_by_id')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow2.cwl'))
-    job.add_input_file('input_file', os.path.join(this_dir, 'test_workflow2.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow2.cwl'))
+    job.add_input_file('input_file', str(this_dir / 'test_workflow2.cwl'))
     job.run()
     job2 = test_service.get_job_by_id(job.id)
     assert job.id == job2.id
@@ -110,7 +110,7 @@ def test_list_jobs(test_service, this_dir):
     assert len(job_list) == 0
 
     job = test_service.create_job('test_list_jobs1')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow3.cwl'))
     job.set_input('time', 1)
     job.run()
 
@@ -119,7 +119,7 @@ def test_list_jobs(test_service, this_dir):
     assert job_list[0].name == 'test_list_jobs1'
 
     job2 = test_service.create_job('test_list_jobs2')
-    job2.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
+    job2.set_workflow(str(this_dir / 'test_workflow3.cwl'))
     job2.set_input('time', 2)
     job2.run()
 
@@ -138,7 +138,7 @@ def test_list_jobs(test_service, this_dir):
 
 def test_get_job_by_name(test_service, this_dir):
     job = test_service.create_job('test_find_job_by_name')
-    job.set_workflow(os.path.join(this_dir, 'test_workflow3.cwl'))
+    job.set_workflow(str(this_dir / 'test_workflow3.cwl'))
     job.set_input('time', 1)
     job.run()
 

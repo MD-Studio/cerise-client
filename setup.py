@@ -2,7 +2,7 @@ from setuptools import setup
 setup(
         name = 'cerise_client',
         packages = ['cerise_client'],
-        version = '0.2.4',
+        version = '0.3.0',
         description = 'Client library for the Cerise CWL job running service',
         author = 'Lourens Veen',
         author_email = 'l.veen@esciencecenter.nl',
@@ -11,7 +11,6 @@ setup(
         license = 'Apache License 2.0',
         python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4',
         install_requires=[
-                'docker>=2.3.0,<3',
                 'defusedxml',
                 'future',
                 'requests'

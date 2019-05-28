@@ -2,7 +2,7 @@ from setuptools import setup
 setup(
         name = 'cerise_client',
         packages = ['cerise_client'],
-        version = '0.3.0',
+        version = '0.3.1',
         description = 'Client library for the Cerise CWL job running service',
         author = 'Lourens Veen',
         author_email = 'l.veen@esciencecenter.nl',
